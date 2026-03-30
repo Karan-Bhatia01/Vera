@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preprocessing — {{ filename }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/eda.css') }}">
+</head>
+<body>
+
+<header class="page-header">
+    <h1>Preprocessing</h1>
+    <span class="filename-badge">{{ filename }}</span>
+    <span class="shape-badge">{{ shape[0] }} rows × {{ shape[1] }} cols</span>
+</header>
+
+<div class="page-body">
+<form method="POST" action="{{ url_for('preprocessing_inputs', filename=filename) }}">
+
+    <!-- ── Target Column ──────────────────────────────────────────────────── -->
+    <section class="section">
+        <p class="section-label">Target Column</p>
+        <div class="field-row">
+            <select name="target_column" class="select-input">
+                <option value="">— None / Unsupervised —</option>
+                {% for col in columns %}
+                    <option value="{{ col }}">{{ col }}</option>
+                {% endfor %}
+            </select>
+            <span class="field-hint">Used to colour scatter and pairplot charts</span>
+        </div>
+    </section>
+
+    <!-- ── Drop Columns ───────────────────────────────────────────────────── -->
+    <section class="section">
+        <p class="section-label">Drop Columns</p>
+        <div class="checkbox-grid">
+            {% for col in columns %}
+            <label class="checkbox-item">
+                <input type="checkbox" name="columns_to_drop" value="{{ col }}">
+                <span>{{ col }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ── Missing Value Strategy ──────────────────────────────────────────── -->
+    <section class="section">
+        <p class="section-label">
+            Missing Value Strategy
+            {% if not has_nulls %}
+                <span class="no-nulls-badge">✓ No missing values</span>
+            {% endif %}
+        </p>
+
+        {% if has_nulls %}
+        <p class="hint-text">
+            Dropdowns are pre-filled with AI suggestions. Override any column as needed.
+        </p>
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Null Count</th>
+                        <th>AI Suggestion</th>
+                        <th>Your Choice</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for col, count in null_counts.items() %}
+                    {% if count > 0 %}
+                    <tr>
+                        <td>{{ col }}</td>
+                        <td><span class="badge-warn">{{ count }}</span></td>
+                        <td>
+                            {% if col in ai_strategy %}
+                                <span class="ai-suggestion">{{ ai_strategy[col] }}</span>
+                            {% else %}
+                                <span class="dash">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <select name="missing_{{ col }}" class="select-input select-input--sm">
+                                {% set methods = ['mean', 'median', 'mode', 'ffill', 'bfill', 'zero', 'drop'] %}
+                                {% for method in methods %}
+                                    <option value="{{ method }}"
+                                        {{ 'selected' if ai_strategy.get(col) == method else '' }}>
+                                        {{ method }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="dup-ok">✓ Dataset has no missing values — this step will be skipped.</p>
+        {% endif %}
+    </section>
+
+    <!-- ── Submit ─────────────────────────────────────────────────────────── -->
+    <div class="form-footer">
+        <button type="submit" class="btn-run">
+            Run Preprocessing &amp; Generate EDA →
+        </button>
+    </div>
+
+</form>
+</div>
+
+</body>
+</html>

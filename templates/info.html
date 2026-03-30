@@ -8,53 +8,199 @@
 </head>
 <body>
 
-    <h1>Dataset Overview</h1>
+    <div class="page-top">
+        <h1>Dataset Overview</h1>
+        <a class="btn-eda" href="{{ url_for('preprocessing_inputs', filename=request.args.get('filename')) }}">
+            Run EDA &amp; Preprocessing →
+        </a>
+    </div>
 
+    <!-- ================= AI INSIGHTS ================= -->
+    <section class="ai-section">
+
+        <!-- Summary -->
+        <div class="ai-summary">
+            <div class="ai-summary__label">AI Summary</div>
+            <p class="ai-summary__text">{{ ai_insights.summary }}</p>
+        </div>
+
+        <!-- Quality Flags -->
+        {% if ai_insights.quality_flags %}
+        <div class="ai-block">
+            <h2 class="ai-block__title">Quality Flags</h2>
+            <div class="flags-grid">
+                {% for flag in ai_insights.quality_flags %}
+                <div class="flag flag--{{ flag.severity }}">
+                    <div class="flag__header">
+                        <span class="flag__severity flag__severity--{{ flag.severity }}">{{ flag.severity }}</span>
+                        <span class="flag__column">{{ flag.column }}</span>
+                    </div>
+                    <div class="flag__issue">{{ flag.issue }}</div>
+                    <div class="flag__detail">{{ flag.detail }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Column Insights -->
+        {% if ai_insights.column_insights %}
+        <div class="ai-block">
+            <h2 class="ai-block__title">Column Insights</h2>
+            <div class="insights-list">
+                {% for item in ai_insights.column_insights %}
+                <div class="insight-row">
+                    <span class="insight-row__col">{{ item.column }}</span>
+                    <span class="insight-row__text">{{ item.insight }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Next Steps -->
+        {% if ai_insights.next_steps %}
+        <div class="ai-block">
+            <h2 class="ai-block__title">Recommended Next Steps</h2>
+            <ol class="steps-list">
+                {% for step in ai_insights.next_steps %}
+                <li class="step">
+                    <span class="step__title">{{ step.title }}</span>
+                    <span class="step__detail">{{ step.detail }}</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+
+        <!-- Uncertainty Notes -->
+        {% if ai_insights.uncertainty_notes %}
+        <div class="ai-block ai-block--muted">
+            <h2 class="ai-block__title">Uncertainty & Limitations</h2>
+            <p class="uncertainty-text">{{ ai_insights.uncertainty_notes }}</p>
+        </div>
+        {% endif %}
+
+    </section>
+
+    <!-- ================= SHAPE ================= -->
     <h2>Shape</h2>
-    <p>Rows: {{ analysis.shape[0] }} | Columns: {{ analysis.shape[1] }}</p>
+    <p>
+        Rows: <strong>{{ analysis.shape[0] }}</strong> &nbsp;|&nbsp;
+        Columns: <strong>{{ analysis.shape[1] }}</strong> &nbsp;|&nbsp;
+        Memory: <strong>{{ analysis.memory_usage_mb }} MB</strong>
+    </p>
 
+    <!-- ================= COLUMNS ================= -->
     <h2>Columns</h2>
-    <ul>
-        {% for col in analysis.columns %}
-            <li>{{ col }}</li>
-        {% endfor %}
-    </ul>
-
-    <h2>Null Values</h2>
-    <table border="1">
-        <tr>
-            <th>Column</th>
-            <th>Null Count</th>
-        </tr>
-        {% for col, count in analysis.null_values.items() %}
-        <tr>
-            <td>{{ col }}</td>
-            <td>{{ count }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-
-    <h2>Duplicate Rows</h2>
-    <p>{{ analysis.duplicate_rows }}</p>
-
-    <h2>Numeric Columns</h2>
+    {% if analysis.numeric_columns %}
+    <p class="col-label">Numeric</p>
     <ul>
         {% for col in analysis.numeric_columns %}
-            <li>{{ col }}</li>
+            <li class="tag tag--numeric">{{ col }}</li>
         {% endfor %}
     </ul>
-
-    <h2>Categorical Columns</h2>
+    {% endif %}
+    {% if analysis.categorical_columns %}
+    <p class="col-label">Categorical</p>
     <ul>
         {% for col in analysis.categorical_columns %}
-            <li>{{ col }}</li>
+            <li class="tag tag--category">{{ col }}</li>
         {% endfor %}
     </ul>
+    {% endif %}
 
-    <h2>Unique Values</h2>
-    {% for col, values in unique.items() %}
-        <h4>{{ col }}</h4>
-        <p>{{ values }}</p>
+    <!-- ================= NULL VALUES ================= -->
+    <h2>Null Values</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Column</th>
+                <th>Null Count</th>
+                <th>% Missing</th>
+                <th>Distribution</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for col, count in analysis.null_values.items() %}
+            <tr>
+                <td>{{ col }}</td>
+                <td>
+                    {% if count == 0 %}
+                        <span class="badge-ok">0</span>
+                    {% else %}
+                        <span class="badge-warn">{{ count }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ analysis.null_percentages[col] }}%</td>
+                <td>
+                    {% if count > 0 %}
+                    <div class="null-bar">
+                        <div class="null-bar__fill" style="width: {{ analysis.null_percentages[col] }}%"></div>
+                    </div>
+                    {% else %}
+                        <span class="dash">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ================= DUPLICATES ================= -->
+    <h2>Duplicate Rows</h2>
+    {% if analysis.duplicate_rows > 0 %}
+        <p class="dup-warn">⚠ {{ analysis.duplicate_rows }} duplicate rows detected</p>
+    {% else %}
+        <p class="dup-ok">✓ No duplicate rows found</p>
+    {% endif %}
+
+    <!-- ================= UNIQUE VALUES ================= -->
+    <h2>Unique Values (Preview)</h2>
+    <div class="unique-grid">
+        {% for col, meta in unique.items() %}
+        <div class="unique-card">
+            <div class="unique-card__header">
+                <span class="unique-card__col">{{ col }}</span>
+                <span class="unique-card__count">{{ meta['total_unique'] }} unique</span>
+            </div>
+            <ul class="unique-card__pills">
+                {% for val in meta['values'] %}
+                    <li>{{ val }}</li>
+                {% endfor %}
+            </ul>
+            {% if meta['truncated'] %}
+                <small>Showing 10 of {{ meta['total_unique'] }} values</small>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ================= DESCRIBE ================= -->
+    <h2>Descriptive Statistics</h2>
+    {% for col, stats in analysis.describe.items() %}
+    <details class="describe-block">
+        <summary>{{ col }}</summary>
+        <table>
+            <thead>
+                <tr><th>Statistic</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+                {% for stat, value in stats.items() %}
+                <tr>
+                    <td>{{ stat }}</td>
+                    <td>
+                        {% if value is not none %}
+                            {{ "%.4g" | format(value) if value is number else value }}
+                        {% else %}
+                            <span class="dash">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
     {% endfor %}
 
 </body>

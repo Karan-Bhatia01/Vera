@@ -95,7 +95,7 @@ MongoDB (Stats, Metadata, Embeddings)
         |
 LangChain RAG Pipeline
         |
-Gemini LLM
+Groq LLM
 
 6️⃣ Data Flow (Very Important for Interviews)
 Step 1: Upload & Validation

@@ -42,12 +42,21 @@ class DataIngestion:
 
             for file in latest_file:
                 file_bytes = file.read()
-                df = pd.read_csv(io.BytesIO(file_bytes))
+
+                try:
+                    # First try UTF-8
+                    df = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8")
+                except UnicodeDecodeError:
+                    # Fallback for Windows / Excel CSVs
+                    df = pd.read_csv(io.BytesIO(file_bytes), encoding="latin1")
+
                 return df.head().values.tolist(), df.columns.tolist()
 
             return None, None
+
         except Exception as e:
             raise CustomException(e, sys)
+
         
     def get_all_filenames(self):
         return sorted(

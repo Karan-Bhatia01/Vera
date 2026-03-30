@@ -18,7 +18,7 @@ class DataInfo:
             self.db = client["clarityAI_database"]
             self.fs = gridfs.GridFS(self.db)
 
-            logging.info("MongoDB connection established in DataPreprocessing.")
+            logging.info("MongoDB connection established in Data-Info.")
 
         except Exception as e:
             raise CustomException(e, sys)
@@ -71,12 +71,21 @@ class DataInfo:
 
     def get_unique_column_values(self) -> dict:
         """
-        Returns a dictionary with column names and its unique values.
+        Returns a dictionary with column names and limited unique values.
         """
-        df = self.get_dataframe()
-        unique_val = {}
-        for col in df.columns:
-            unique_val[col]=df[col].unique().tolist()
+        try:
+            df = self.get_dataframe()
+            unique_val = {}
 
-        return unique_val
-    
+            for col in df.columns:
+                values = df[col].dropna().unique().tolist()
+
+                unique_val[col] = {
+                    "values": values[:10],
+                    "total_unique": len(values),
+                    "truncated": len(values) > 10
+                }
+
+            return unique_val
+        except Exception as e:
+            raise CustomException(e, sys)

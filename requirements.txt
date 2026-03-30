@@ -3,3 +3,9 @@ pandas
 Flask
 pymongo
 scikit-learn
+
+matplotlib
+seaborn
+
+python-dotenv
+groq
