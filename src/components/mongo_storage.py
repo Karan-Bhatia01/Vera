@@ -10,6 +10,7 @@ All stored automatically after upload + analysis — no extra user action requir
 """
 from __future__ import annotations
 
+import os
 import sys
 import json
 from datetime import datetime, timezone
@@ -19,7 +20,7 @@ from pymongo import MongoClient, DESCENDING
 from src.logger import logging
 from src.exception import CustomException
 
-_MONGO_URL = "mongodb://localhost:27017/"
+_MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 _DB_NAME   = "clarityAI_database"
 
 

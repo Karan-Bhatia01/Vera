@@ -21,7 +21,7 @@ from src.utils import load_dataframe_from_mongo
 
 load_dotenv()
 
-_MONGO_URL    = "mongodb://localhost:27017/"
+_MONGO_URL    = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 _DB_NAME      = "clarityAI_database"
 _LLM_MODEL    = "deepseek-v3"   # DeepSeek V3 via Oxlo
 _OXLO_BASE    = "https://api.oxlo.ai/v1"
@@ -158,7 +158,9 @@ def _fallback_notebook(filename: str, target: str, columns: list) -> dict:
             "cell_imports"
         ),
         _code_cell(
-            f"# 2. Load data from MongoDB GridFS\nclient = MongoClient('mongodb://localhost:27017/')\n"
+            f"# 2. Load data from MongoDB GridFS\nfrom pymongo import MongoClient\n"
+            f"import os\nmongo_uri = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')\n"
+            f"client = MongoClient(mongo_uri)\n"
             f"db = client['clarityAI_database']\nfs = gridfs.GridFS(db)\n"
             f"grid_out = fs.find_one({{'filename': '{filename}'}}, sort=[('uploadDate', -1)])\n"
             f"df = pd.read_csv(io.BytesIO(grid_out.read()))\n"

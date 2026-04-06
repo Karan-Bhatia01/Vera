@@ -55,7 +55,7 @@ from src.utils import load_dataframe_from_mongo, llm_agent, parse_json_response
 load_dotenv()
 
 # ── MongoDB ────────────────────────────────────────────────────────────────────
-_MONGO_URL = "mongodb://localhost:27017/"
+_MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 _DB_NAME   = "clarityAI_database"
 
 # ── Constants ──────────────────────────────────────────────────────────────────

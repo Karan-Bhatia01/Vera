@@ -63,7 +63,8 @@ class DataPreprocessing:
             self.columns_to_drop = columns_to_drop or []
             self._oxlo_key       = oxlo_api_key or _OXLO_API_KEY
 
-            client  = MongoClient("mongodb://localhost:27017/")
+            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+            client  = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
             self.db = client["clarityAI_database"]
             self.fs = gridfs.GridFS(self.db)
 

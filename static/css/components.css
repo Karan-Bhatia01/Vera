@@ -1,23 +1,4 @@
 /* ────────────────────────────────────────────────────────────────
-   CUSTOM FONTS
-   ──────────────────────────────────────────────────────────────── */
-
-@font-face {
-  font-family: Radio;
-  src: url(../assets/fonts/RadioGrotesk-Regular.otf);
-}
-
-@font-face {
-  font-family: 'Product Sans';
-  src: url(../assets/fonts/Product\ Sans\ Regular.ttf);
-}
-
-@font-face {
-  font-family: 'Geist Mono';
-  src: url(../assets/fonts/GeistMonoVariableVF.ttf);
-}
-
-/* ────────────────────────────────────────────────────────────────
    BUTTON STYLES
    ──────────────────────────────────────────────────────────────── */
 

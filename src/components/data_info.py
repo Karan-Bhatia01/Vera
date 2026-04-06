@@ -1,5 +1,6 @@
 import sys
 import io
+import os
 import pandas as pd
 
 import gridfs
@@ -14,7 +15,8 @@ class DataInfo:
         try:
             self.filename = filename
 
-            client = MongoClient("mongodb://localhost:27017/")
+            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+            client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
             self.db = client["clarityAI_database"]
             self.fs = gridfs.GridFS(self.db)
 

@@ -22,7 +22,8 @@ from src.exception import CustomException
 def get_gridfs_connection():
     """Create and return MongoDB GridFS connection."""
     try:
-        client = MongoClient("mongodb://localhost:27017/")
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
         db = client["clarityAI_database"]
         fs = gridfs.GridFS(db)
         logging.info("MongoDB GridFS connection established.")

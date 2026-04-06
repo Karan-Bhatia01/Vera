@@ -8,7 +8,6 @@ from flask import (
     Flask, render_template, request, redirect,
     url_for, jsonify, session, send_file, Response,
 )
-from src.components.data_ingestion import DataIngestion
 from src.agenticLayer.llm import AnalysisExplainer
 from src.components.job_store import create_job, update_job, get_job
 
@@ -17,8 +16,16 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 
-# ── Singleton data_ingestion (avoid recreating MongoClient every request) ─────
-data_ingestion = DataIngestion()
+# ── Lazy DataIngestion (avoid MongoClient before Gunicorn fork) ─────────────
+_data_ingestion = None
+
+def get_data_ingestion():
+    """Lazy load data_ingestion to avoid fork-safety issues with MongoClient."""
+    global _data_ingestion
+    if _data_ingestion is None:
+        from src.components.data_ingestion import DataIngestion
+        _data_ingestion = DataIngestion()
+    return _data_ingestion
 
 
 # ── Health Check ───────────────────────────────────────────────────────────────
@@ -26,10 +33,14 @@ data_ingestion = DataIngestion()
 def api_health():
     try:
         from pymongo import MongoClient
-        MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=1500).admin.command("ping")
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        client.admin.command("ping")
+        client.close()
         return jsonify({"status": "connected", "mongodb": True})
-    except Exception:
-        return jsonify({"status": "offline", "mongodb": False}), 503
+    except Exception as e:
+        app.logger.warning(f"Health check failed: {e}")
+        return jsonify({"status": "offline", "mongodb": False, "error": str(e)}), 503
 
 
 # ── Landing ────────────────────────────────────────────────────────────────────
@@ -46,9 +57,11 @@ def index():
     if request.method == "POST":
         file = request.files.get("file")
         if file and file.filename:
+            data_ingestion = get_data_ingestion()
             data_ingestion.store_file(file)
             return redirect(url_for("index", filename=file.filename))
 
+    data_ingestion = get_data_ingestion()
     filenames               = data_ingestion.get_all_filenames()
     preview_data, columns   = data_ingestion.get_preview()
 
@@ -251,7 +264,8 @@ def download_model():
         from bson import ObjectId
         from pymongo import MongoClient
         import gridfs
-        client    = MongoClient("mongodb://localhost:27017/")
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+        client    = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
         db        = client["clarityAI_database"]
         fs        = gridfs.GridFS(db)
         col       = db["ml_results"]
@@ -275,7 +289,8 @@ def download_model():
 def api_list_models(filename):
     try:
         from pymongo import MongoClient
-        db  = MongoClient("mongodb://localhost:27017/")["clarityAI_database"]
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+        db  = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)["clarityAI_database"]
         doc = db["ml_results"].find_one({"filename": filename}, sort=[("_id", -1)])
         if not doc:
             return jsonify({"models": [], "doc_id": None})
@@ -466,7 +481,8 @@ def api_shap(doc_id):
     try:
         from bson import ObjectId
         from pymongo import MongoClient
-        db  = MongoClient("mongodb://localhost:27017/")["clarityAI_database"]
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+        db  = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)["clarityAI_database"]
         doc = db["ml_results"].find_one({"_id": ObjectId(doc_id)})
         if not doc:
             return jsonify({"error": "Not found"}), 404

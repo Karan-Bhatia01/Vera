@@ -1,4 +1,5 @@
 import io
+import os
 import sys
 import pandas as pd
 import gridfs
@@ -11,7 +12,9 @@ from src.exception import CustomException
 class DataIngestion:
     def __init__(self):
         try:
-            client   = MongoClient("mongodb://localhost:27017/")
+            # Use environment variable or fallback to localhost
+            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+            client   = MongoClient(mongo_uri)
             self.db  = client["clarityAI_database"]
             self.fs  = gridfs.GridFS(self.db)
             logging.info("MongoDB GridFS connection established")

@@ -2,30 +2,17 @@
    VERA DESIGN SYSTEM — Dark Theme with Modern Aesthetics
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* ─────────────── CUSTOM FONTS ─────────────── */
-@font-face {
-  font-family: Radio;
-  src: url(../assets/fonts/RadioGrotesk-Regular.otf);
-}
-
-@font-face {
-  font-family: 'Product Sans';
-  src: url(../assets/fonts/Product\ Sans\ Regular.ttf);
-}
-
-@font-face {
-  font-family: 'Geist Mono';
-  src: url(../assets/fonts/GeistMonoVariableVF.ttf);
-}
-
+/* ─────────────── FONTS ─────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap');
 
 :root {
   /* ─────────────── TYPOGRAPHY ─────────────── */
   
-  --font-family: 'Product Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Radio', 'Product Sans', -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', 'Fira Code', 'Courier New', monospace;
+  --font-family: 'Inter', 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Inter', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Courier New', monospace;
   
   /* Font Scale (px) */
   --font-size-xs: 11px;
