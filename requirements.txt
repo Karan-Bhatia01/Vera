@@ -9,6 +9,6 @@ seaborn
 
 python-dotenv
 openai
-
+gunicorn
 faiss-cpu
 shap
