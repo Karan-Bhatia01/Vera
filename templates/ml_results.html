@@ -2,186 +2,571 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ML Results — {{ filename }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <style>* { font-family: 'Inter', -apple-system, sans-serif !important; }</style>
 </head>
 <body>
-<header class="page-header">
-    <h1>📈 ML Pipeline Results</h1>
-    <div class="meta">
-        <span class="filename-badge">{{ filename }}</span>
-        <span class="shape-badge">{{ problem_type | capitalize }}</span>
-        <span class="shape-badge">Target: {{ target_column }}</span>
-    </div>
-</header>
 
-<div class="page-body">
+{% include 'partials/navbar.html' %}
 
-    <!-- Feature Engineering Plan -->
-    <section class="section animate-in">
-        <p class="section-label">⚙️ LLM Feature Engineering Plan</p>
-        
-        {% if feature_plan.reasoning %}
-        <div style="padding: var(--space-4); background-color: var(--bg-tertiary); border-left: 3px solid var(--accent-primary); border-radius: var(--radius-md); margin-bottom: var(--space-6);">
-            <strong style="color: var(--accent-primary);">Reasoning:</strong>
-            <p style="margin-top: var(--space-2); color: var(--fg-secondary); font-size: var(--font-size-sm);">{{ feature_plan.reasoning }}</p>
-        </div>
-        {% endif %}
+<main style="margin-top: 56px; padding: var(--space-8) 0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6);">
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4);">
-            {% if feature_plan.drop %}
-            <div class="card">
-                <h4 style="color: var(--accent-destructive); margin-top: 0;">❌ Dropped Features</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                    {% for c in feature_plan.drop %}
-                        <span class="badge badge-secondary" style="background-color: rgba(239, 68, 68, 0.1); color: var(--accent-destructive);">{{ c }}</span>
+        <!-- PAGE HEADER -->
+        <header style="margin-bottom: var(--space-8);">
+            <h1 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                📈 ML Pipeline Results
+            </h1>
+            <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+                <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary);">
+                    📄 {{ filename }}
+                </span>
+                <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary);">
+                    {{ problem_type | capitalize }}
+                </span>
+                <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary);">
+                    Target: {{ target_column }}
+                </span>
+            </div>
+        </header>
+
+        <!-- DOWNLOADS SECTION -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                ⬇️ Downloads
+            </h2>
+            <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; margin-bottom: var(--space-4);">
+                <select id="modelSelect" style="padding: var(--space-2) var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--fg-primary); font-size: var(--font-size-sm);">
+                    {% for model_name in results %}
+                    <option value="{{ model_name }}" {% if model_name == best_model %}selected{% endif %}>
+                        {{ model_name }}{% if model_name == best_model %} ⭐ Best{% endif %}
+                    </option>
                     {% endfor %}
-                </div>
+                </select>
+                <button class="btn btn-primary" onclick="downloadModel()" style="padding: var(--space-2) var(--space-4);">
+                    🤖 Download Model
+                </button>
+                <a class="btn btn-secondary" href="/download_notebook?filename={{ filename }}&target={{ target_column }}" download style="padding: var(--space-2) var(--space-4);">
+                    📓 Export Notebook
+                </a>
+            </div>
+            <p style="font-size: var(--font-size-xs); color: var(--fg-tertiary); margin: var(--space-3) 0 0 0;">
+                MongoDB ID: <code style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;">{{ mongo_doc_id }}</code>
+            </p>
+        </section>
+
+        <!-- AI SUMMARY SECTION -->
+        <section style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
+                <h2 style="font-size: var(--font-size-xl); margin: 0; color: var(--fg-primary);">
+                    ✨ Comprehensive AI Summary
+                </h2>
+                <span style="background: var(--accent-primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs); font-weight: 600;">
+                    deepseek-r1-8b
+                </span>
+            </div>
+            
+            <div id="summaryContent" style="min-height: 100px; display: flex; align-items: center; justify-content: center; color: var(--fg-tertiary); width: 100%; box-sizing: border-box; overflow: hidden; word-wrap: break-word;">
+                <span>⏳ Generating detailed summary...</span>
+            </div>
+            
+            <script>
+                // Auto-generate comprehensive summary on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    const summaryDiv = document.getElementById('summaryContent');
+                    
+                    fetch('/api/generate_summary', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            filename: '{{ filename }}',
+                            best_model: '{{ best_model }}',
+                            problem_type: '{{ problem_type }}',
+                            target_column: '{{ target_column }}'
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        const summaryText = data.summary || data.error || 'Could not generate summary.';
+                        
+                        // Format the summary with line breaks and styling
+                        const formatted = summaryText
+                            .split('\n')
+                            .map(line => {
+                                if (line.startsWith('📊') || line.startsWith('🎯') || line.startsWith('💡') || 
+                                    line.startsWith('⚠️') || line.startsWith('✅')) {
+                                    return '<strong style="color: var(--accent-primary); display: block; margin-top: var(--space-3); margin-bottom: var(--space-2); width: 100%; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">' + 
+                                           line.replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                                           '</strong>';
+                                } else if (line.startsWith('- ')) {
+                                    return '<div style="margin-left: var(--space-4); color: var(--fg-secondary); margin-bottom: var(--space-1); width: 100%; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">• ' + 
+                                           line.substring(2).replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                                           '</div>';
+                                } else if (line.trim() === '') {
+                                    return '';
+                                } else {
+                                    return '<p style="color: var(--fg-secondary); font-size: var(--font-size-md); line-height: 1.6; margin: var(--space-2) 0; width: 100%; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">' + 
+                                           line.replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                                           '</p>';
+                                }
+                            })
+                            .join('');
+                        
+                        // Set HTML with proper container styling
+                        summaryDiv.innerHTML = '<div style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start;">' + formatted + '</div>';
+                        summaryDiv.style.display = 'block';
+                        summaryDiv.style.alignItems = 'initial';
+                        summaryDiv.style.justifyContent = 'initial';
+                    })
+                    .catch(e => {
+                        console.error('Summary error:', e);
+                        summaryDiv.innerHTML = '<p style="color: var(--accent-destructive); font-size: var(--font-size-md);">⚠ Unable to generate summary. Check backend connection.</p>';
+                    });
+                });
+            </script>
+        </section>
+
+        <!-- FEATURE ENGINEERING PLAN -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                ⚙️ Feature Engineering Plan
+            </h2>
+            
+            {% if feature_plan.reasoning %}
+            <div style="background: var(--bg-primary); border-left: 3px solid var(--accent-primary); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-6);">
+                <strong style="color: var(--accent-primary);">Reasoning:</strong>
+                <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary); font-size: var(--font-size-sm);">
+                    {{ feature_plan.reasoning }}
+                </p>
             </div>
             {% endif %}
 
-            {% if feature_plan.numeric %}
-            <div class="card">
-                <h4 style="color: var(--accent-secondary); margin-top: 0;">📊 Scaled Numeric</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                    {% for c in feature_plan.numeric %}
-                        <span class="badge" style="background-color: var(--accent-secondary);">{{ c }}</span>
-                    {% endfor %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4);">
+                {% if feature_plan.drop %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <h4 style="color: var(--accent-destructive); margin: 0 0 var(--space-3) 0; font-size: var(--font-size-md);">
+                        ❌ Dropped
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                        {% for c in feature_plan.drop %}
+                        <span style="background: rgba(239, 68, 68, 0.1); color: var(--accent-destructive); padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                            {{ c }}
+                        </span>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            {% if feature_plan.onehot %}
-            <div class="card">
-                <h4 style="color: var(--accent-primary); margin-top: 0;">🏷️ One-Hot Encoded</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                    {% for c in feature_plan.onehot %}
-                        <span class="badge">{{ c }}</span>
-                    {% endfor %}
+                {% if feature_plan.numeric %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <h4 style="color: var(--accent-secondary); margin: 0 0 var(--space-3) 0; font-size: var(--font-size-md);">
+                        📊 Scaled Numeric
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                        {% for c in feature_plan.numeric %}
+                        <span style="background: var(--accent-secondary); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                            {{ c }}
+                        </span>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            {% if feature_plan.ordinal %}
-            <div class="card">
-                <h4 style="color: var(--accent-warning); margin-top: 0;">🔢 Ordinal Encoded</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                    {% for c in feature_plan.ordinal %}
-                        <span class="badge badge-secondary" style="border: 1px solid var(--accent-warning);">{{ c }}</span>
-                    {% endfor %}
+                {% if feature_plan.onehot %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <h4 style="color: var(--accent-primary); margin: 0 0 var(--space-3) 0; font-size: var(--font-size-md);">
+                        🏷️ One-Hot Encoded
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                        {% for c in feature_plan.onehot %}
+                        <span style="background: var(--accent-primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                            {{ c }}
+                        </span>
+                        {% endfor %}
+                    </div>
                 </div>
+                {% endif %}
+
+                {% if feature_plan.ordinal %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <h4 style="color: var(--accent-warning); margin: 0 0 var(--space-3) 0; font-size: var(--font-size-md);">
+                        🔢 Ordinal Encoded
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                        {% for c in feature_plan.ordinal %}
+                        <span style="border: 1px solid var(--accent-warning); color: var(--accent-warning); padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                            {{ c }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
-    </section>
+        </section>
 
-    <!-- Model Comparison -->
-    <section class="section animate-in">
-        <p class="section-label">🏆 Model Comparison</p>
-        <div class="tbl-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Model</th>
-                        {% if problem_type == "classification" %}
-                            <th>Accuracy</th><th>F1 Score</th>
-                            <th>Precision</th><th>Recall</th>
-                            <th>ROC-AUC</th>
-                        {% else %}
-                            <th>R² Score</th><th>RMSE</th><th>MAE</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for model_name, data in results.items() %}
-                    <tr style="{% if model_name == best_model %}background-color: rgba(79, 70, 229, 0.1);{% endif %}">
-                        <td>
-                            <strong>{{ model_name }}</strong>
-                            {% if model_name == best_model %}
-                                <span class="badge" style="margin-left: var(--space-2);">⭐ Best</span>
-                            {% endif %}
-                        </td>
-                        {% if problem_type == "classification" %}
-                            <td><strong style="color: var(--accent-primary);">{{ "%.4f" | format(data.metrics.accuracy) }}</strong></td>
-                            <td>{{ "%.4f" | format(data.metrics.f1) }}</td>
-                            <td>{{ "%.4f" | format(data.metrics.precision) }}</td>
-                            <td>{{ "%.4f" | format(data.metrics.recall) }}</td>
-                            <td>{{ "%.4f" | format(data.metrics.roc_auc) if data.metrics.roc_auc else "—" }}</td>
-                        {% else %}
-                            <td><strong style="color: var(--accent-primary);">{{ "%.4f" | format(data.metrics.r2) }}</strong></td>
-                            <td>{{ "%.4f" | format(data.metrics.rmse) }}</td>
-                            <td>{{ "%.4f" | format(data.metrics.mae) }}</td>
-                        {% endif %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- Best Model Details -->
-    {% set best = results[best_model] %}
-    <section class="section animate-in">
-        <p class="section-label">🎯 Best Model — {{ best_model }}</p>
-
-        <!-- Confusion Matrix -->
-        {% if best.metrics.confusion_matrix %}
-        <div style="margin-bottom: var(--space-8);">
-            <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-4);">Confusion Matrix</h3>
-            <div class="tbl-wrap">
-                <table style="max-width: 400px;">
-                    <tbody>
-                        {% for row in best.metrics.confusion_matrix %}
-                        {% set row_idx = loop.index0 %}
+        <!-- MODEL COMPARISON -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                🏆 Model Comparison
+            </h2>
+            <div style="overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-default);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: var(--bg-tertiary);">
                         <tr>
-                            {% for cell in row %}
-                            <td style="text-align: center; font-weight: 600; background-color: {% if loop.index0 == row_idx %}rgba(16, 185, 129, 0.1){% else %}rgba(239, 68, 68, 0.05){% endif %};">
-                                {{ cell }}
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">
+                                Model
+                            </th>
+                            {% if problem_type == "classification" %}
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Accuracy</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">F1 Score</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Precision</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Recall</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">ROC-AUC</th>
+                            {% else %}
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">R² Score</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">RMSE</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">MAE</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for model_name, data in results.items() %}
+                        <tr style="{% if model_name == best_model %}background: rgba(79, 70, 229, 0.1);{% endif %}">
+                            <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                <strong style="color: var(--fg-primary);">{{ model_name }}</strong>
+                                {% if model_name == best_model %}
+                                <span style="display: inline-block; background: var(--accent-primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs); font-weight: 600; margin-left: var(--space-2);">
+                                    ⭐ Best
+                                </span>
+                                {% endif %}
                             </td>
-                            {% endfor %}
+                            {% if problem_type == "classification" %}
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);"><strong style="color: var(--accent-primary);">{{ "%.4f" | format(data.metrics.accuracy) }}</strong></td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.f1) }}</td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.precision) }}</td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.recall) }}</td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.roc_auc) if data.metrics.roc_auc else "—" }}</td>
+                            {% else %}
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);"><strong style="color: var(--accent-primary);">{{ "%.4f" | format(data.metrics.r2) }}</strong></td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.rmse) }}</td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">{{ "%.4f" | format(data.metrics.mae) }}</td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-        {% endif %}
+        </section>
 
-        <!-- Feature Importance -->
-        {% if best.feature_importance %}
-        <div>
-            <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-4);">📊 Top Feature Importance</h3>
-            <div style="display: grid; gap: var(--space-4);">
-                {% set max_val = best.feature_importance.values() | list | max | abs %}
-                {% for feat, val in best.feature_importance.items() | list | sort(reverse=true, attribute='1') | list %}
-                {% if loop.index <= 10 %}
-                <div class="feature-bar">
-                    <div class="feature-bar-label">
-                        <span>{{ feat }}</span>
-                        <span style="color: var(--accent-primary); font-weight: 600;">{{ "%.4f" | format(val) }}</span>
-                    </div>
-                    <div class="feature-bar-track">
-                        <div class="feature-bar-fill" style="width: {{ ((val | abs) / max_val * 100) | round }}%;"></div>
-                    </div>
+        <!-- BEST MODEL DETAILS -->
+        {% set best = results[best_model] %}
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                🎯 Best Model — {{ best_model }}
+            </h2>
+
+            <!-- Confusion Matrix -->
+            {% if best.metrics.confusion_matrix %}
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                    Confusion Matrix
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table style="max-width: 400px;">
+                        <tbody>
+                            {% for row in best.metrics.confusion_matrix %}
+                            {% set row_idx = loop.index0 %}
+                            <tr>
+                                {% for cell in row %}
+                                <td style="padding: var(--space-3); text-align: center; font-weight: 600; border: 1px solid var(--border-default); background: {% if loop.index0 == row_idx %}rgba(16, 185, 129, 0.1){% else %}rgba(239, 68, 68, 0.05){% endif %};">
+                                    {{ cell }}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                {% endif %}
-                {% endfor %}
             </div>
-        </div>
-        {% endif %}
-    </section>
+            {% endif %}
 
-    <!-- Summary -->
-    <div style="text-align: center; padding: var(--space-8); background-color: var(--bg-secondary); border-radius: var(--radius-lg); margin-top: var(--space-8);">
-        <p style="color: var(--fg-secondary); font-size: var(--font-size-sm); margin: 0;">All models and results saved to MongoDB</p>
-        <p style="color: var(--fg-muted); font-size: var(--font-size-xs); margin-top: var(--space-2);">Document ID: <code>{{ mongo_doc_id }}</code></p>
+            <!-- Feature Importance -->
+            {% if best.feature_importance %}
+            <div>
+                <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                    📊 Top Feature Importance
+                </h3>
+                <div style="display: grid; gap: var(--space-3);">
+                    {% set max_val = best.feature_importance.values() | list | max | abs %}
+                    {% for feat, val in best.feature_importance.items() | list | sort(reverse=true, attribute='1') | list %}
+                    {% if loop.index <= 10 %}
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1); font-size: var(--font-size-sm);">
+                            <span style="color: var(--fg-primary);">{{ feat }}</span>
+                            <span style="color: var(--accent-primary); font-weight: 600;">{{ "%.4f" | format(val) }}</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                            <div style="height: 100%; width: {{ ((val | abs) / max_val * 100) | round }}%; background: var(--accent-primary);"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- SHAP EXPLAINABILITY SECTION -->
+        {% if shap and shap.summary_plot %}
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                🔍 SHAP Explainability — {{ shap.model_name }}
+            </h2>
+
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-2); color: var(--fg-primary);">
+                    Feature Impact Summary
+                </h3>
+                <p style="color: var(--fg-muted); font-size: 13px; margin-bottom: var(--space-4);">
+                    Mean absolute SHAP values — how much each feature shifts the model output on average.
+                    Larger bar = stronger influence on predictions.
+                </p>
+                <img src="data:image/png;base64,{{ shap.summary_plot }}"
+                     alt="SHAP Summary Plot"
+                     style="width:100%; border-radius:var(--radius-md);
+                            border:1px solid var(--border-default);">
+            </div>
+
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-2); color: var(--fg-primary);">
+                    Single Prediction Explanation
+                </h3>
+                <p style="color: var(--fg-muted); font-size: 13px; margin-bottom: var(--space-4);">
+                    Row 0 from test set. Red = pushes prediction higher. Blue = pushes lower.
+                </p>
+                <img src="data:image/png;base64,{{ shap.force_plot }}"
+                     alt="SHAP Force Plot"
+                     style="width:100%; border-radius:var(--radius-md);
+                            border:1px solid var(--border-default);">
+            </div>
+
+            {% if shap.top_features %}
+            <div>
+                <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-4); color: var(--fg-primary);">
+                    Top Features by SHAP Importance
+                </h3>
+                {% set max_shap = shap.top_features[0].importance %}
+                <div style="display:grid; gap:var(--space-3);">
+                    {% for feat in shap.top_features %}
+                    <div class="feature-bar">
+                        <div class="feature-bar-label">
+                            <span style="color: var(--fg-primary);">{{ feat.feature }}</span>
+                            <span style="color:var(--accent-purple); font-weight:600;">
+                                {{ "%.5f" | format(feat.importance) }}
+                            </span>
+                        </div>
+                        <div class="feature-bar-track">
+                            <div class="feature-bar-fill"
+                                 style="width:{{ ((feat.importance / max_shap) * 100)|round }}%;
+                                        background: linear-gradient(90deg, #7c3aed, #4f46e5);">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <!-- INLINE CHAT SECTION -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                💬 Ask Vera About This Dataset
+            </h2>
+            <p style="color:var(--fg-muted); font-size:13px; margin-bottom:var(--space-4);">
+                Powered by FAISS retrieval over actual dataset rows + DeepSeek R1 8B
+            </p>
+
+            <div id="inline-chat-msgs"
+                 style="height:300px; overflow-y:auto; display:flex;
+                        flex-direction:column; gap:10px; margin-bottom:var(--space-4);
+                        padding:var(--space-4); background:var(--bg-primary);
+                        border:1px solid var(--border-default); border-radius:var(--radius-md);">
+                <div style="padding:10px 14px; background:var(--bg-elevated);
+                            border-radius:10px; font-size:13px; color:var(--fg-secondary);
+                            align-self:flex-start; max-width:85%;">
+                    Ask me anything about <strong>{{ filename }}</strong> —
+                    I have access to the actual data rows, statistics, and ML results.
+                </div>
+            </div>
+
+            <div style="display:flex; gap:var(--space-3); margin-bottom:var(--space-3);">
+                <input id="inline-chat-input" type="text"
+                       placeholder="e.g. Which feature impacts output most?"
+                       style="flex:1; padding:10px 14px; border-radius:var(--radius-md);
+                              border:1px solid var(--border-default);
+                              background:var(--bg-tertiary); color:var(--fg-primary);
+                              font-size:13px; font-family:inherit; outline:none;"
+                       onkeydown="if(event.key==='Enter') inlineSend()">
+                <button onclick="inlineSend()"
+                        style="padding:10px 20px; background:var(--gradient-primary);
+                               border:none; border-radius:var(--radius-md); color:#fff;
+                               font-weight:600; font-size:13px; cursor:pointer;">
+                    Ask ✦
+                </button>
+            </div>
+
+            <div style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
+                <button class="vera-suggestion-btn"
+                        onclick="inlineAsk(this)">Which feature impacts output most?</button>
+                <button class="vera-suggestion-btn"
+                        onclick="inlineAsk(this)">What are the outliers in this data?</button>
+                <button class="vera-suggestion-btn"
+                        onclick="inlineAsk(this)">Summarize the dataset patterns</button>
+                <button class="vera-suggestion-btn"
+                        onclick="inlineAsk(this)">Which rows have the highest predicted value?</button>
+            </div>
+        </section>
+
     </div>
 
-</div>
+    <!-- FOOTER -->
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-default); padding: var(--space-6) var(--space-6); margin-top: var(--space-8);">
+        <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+            <p style="color: var(--fg-tertiary); font-size: var(--font-size-sm); margin: 0;">
+                © 2026 Karan-Bhatia. All rights reserved. | Powered by OXLO MODELS
+            </p>
+        </div>
+    </footer>
+</main>
+
+<style>
+.feature-bar-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+    font-size: var(--font-size-sm);
+}
+.feature-bar-track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.feature-bar-fill {
+    height: 100%;
+}
+.vera-suggestion-btn {
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--fg-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.vera-suggestion-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--accent-primary);
+    color: var(--fg-primary);
+}
+</style>
 
 <script src="{{ url_for('static', filename='js/modern-ui.js') }}"></script>
-</body>
-</html>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+
+<script>
+    const DOC_ID = "{{ mongo_doc_id }}";
+    const FILENAME = "{{ filename }}";
+    const TARGET = "{{ target_column }}";
+    let inlineHistory     = [];
+    let inlineLoading     = false;
+
+    function downloadModel() {
+        const sel = document.getElementById("modelSelect");
+        const name = sel.value;
+        window.location.href = `/download_model?doc_id=${DOC_ID}&model_name=${encodeURIComponent(name)}`;
+    }
+
+    function inlineAsk(btn) {
+        document.getElementById("inline-chat-input").value = btn.textContent.trim();
+        inlineSend();
+    }
+
+    async function inlineSend() {
+        if (inlineLoading) return;
+        const input = document.getElementById("inline-chat-input");
+        const query = input.value.trim();
+        if (!query) return;
+        input.value = "";
+
+        inlineAppend(query, "user");
+        const typingEl = inlineTyping();
+        inlineLoading  = true;
+
+        try {
+            const res  = await fetch("/api/chat", {
+                method:  "POST",
+                headers: {"Content-Type": "application/json"},
+                body:    JSON.stringify({
+                    query,
+                    filename: FILENAME,
+                    history:  inlineHistory.slice(-6),
+                }),
+            });
+            const data = await res.json();
+            typingEl.remove();
+            inlineAppend(data.answer || "No response.", "bot",
+                         data.sources || [], data.context_sections || []);
+            inlineHistory.push({role:"user",      content: query});
+            inlineHistory.push({role:"assistant", content: data.answer || ""});
+        } catch(e) {
+            typingEl.remove();
+            inlineAppend("Network error. Please try again.", "bot");
+        }
+        inlineLoading = false;
+    }
+
+    function inlineAppend(text, role, sources=[], sections=[]) {
+        const msgs = document.getElementById("inline-chat-msgs");
+        const div  = document.createElement("div");
+        div.style.cssText = `
+            padding:10px 14px; border-radius:10px; font-size:13px;
+            max-width:85%; line-height:1.6; word-break:break-word;
+            ${role === "user"
+                ? "background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;"
+                : "background:var(--bg-elevated);color:var(--fg-primary);align-self:flex-start;border:1px solid var(--border-default);border-bottom-left-radius:3px;"}
+        `;
+        div.innerHTML = text.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\n/g,"<br>");
+        if (sources.length) {
+            const s = document.createElement("div");
+            s.style.cssText = "margin-top:6px;font-size:11px;color:var(--fg-muted);border-top:1px solid rgba(255,255,255,.1);padding-top:5px;";
+            s.textContent   = "📂 " + sources.join(", ");
+            div.appendChild(s);
+        }
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function inlineTyping() {
+        const msgs = document.getElementById("inline-chat-msgs");
+        const el   = document.createElement("div");
+        el.style.cssText = "display:flex;gap:5px;align-items:center;padding:10px 14px;background:var(--bg-elevated);border-radius:10px;width:fit-content;border:1px solid var(--border-default);";
+        el.innerHTML     = '<span style="width:7px;height:7px;background:var(--fg-muted);border-radius:50%;animation:bounce .9s infinite;display:inline-block;"></span>'.repeat(3).replace(/infinite;/g, (m,i) => `infinite;animation-delay:${[0,.15,.3][Math.min(i,2)]}s;`);
+        msgs.appendChild(el);
+        msgs.scrollTop = msgs.scrollHeight;
+        return el;
+    }
+</script>

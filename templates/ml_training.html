@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training — Vera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <style>* { font-family: 'Inter', -apple-system, sans-serif !important; }</style>
+    <style>
+        .training-wrap {
+            max-width: 560px;
+            margin: 80px auto;
+            text-align: center;
+            padding: 0 var(--space-6);
+        }
+        .ring-wrap {
+            width: 140px;
+            height: 140px;
+            margin: 0 auto var(--space-6);
+        }
+        .ring-wrap svg { width: 100%; height: 100%; }
+        #status-msg {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--fg-primary);
+            margin-bottom: var(--space-2);
+            min-height: 32px;
+            transition: all 0.3s;
+        }
+        .meta-line {
+            color: var(--fg-muted);
+            font-size: 13px;
+            margin-bottom: var(--space-8);
+        }
+        .step-list {
+            text-align: left;
+            display: grid;
+            gap: var(--space-2);
+            margin-top: var(--space-6);
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            font-size: 13px;
+            color: var(--fg-secondary);
+            transition: all 0.25s;
+        }
+        .step-item.active {
+            border-color: var(--accent-primary);
+            background: var(--bg-tertiary);
+            color: var(--fg-primary);
+        }
+        .step-item.done {
+            color: var(--fg-muted);
+            border-color: var(--border-subtle);
+        }
+        .step-item.done .step-icon { color: var(--accent-secondary); }
+        .step-icon { font-size: 16px; width: 20px; flex-shrink: 0; }
+        .error-box {
+            display: none;
+            margin-top: var(--space-6);
+            padding: var(--space-4);
+            background: rgba(239,68,68,.08);
+            border: 1px solid var(--accent-destructive);
+            border-radius: var(--radius-md);
+            color: var(--accent-destructive);
+            font-size: 13px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+{% include 'partials/navbar.html' %}
+
+<div class="training-wrap">
+    <div class="ring-wrap">
+        <svg viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="62" fill="none"
+                    stroke="var(--border-default)" stroke-width="8"/>
+            <circle id="ring-fill" cx="70" cy="70" r="62" fill="none"
+                    stroke="url(#ringGrad)" stroke-width="8"
+                    stroke-dasharray="389.6" stroke-dashoffset="389.6"
+                    stroke-linecap="round"
+                    transform="rotate(-90 70 70)"
+                    style="transition: stroke-dashoffset 0.6s ease;"/>
+            <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%"   stop-color="#4f46e5"/>
+                    <stop offset="100%" stop-color="#7c3aed"/>
+                </linearGradient>
+            </defs>
+            <text x="70" y="75" text-anchor="middle"
+                  fill="var(--fg-primary)" font-size="22"
+                  font-weight="700" id="ring-pct">0%</text>
+        </svg>
+    </div>
+
+    <div id="status-msg">Preparing pipeline...</div>
+    <div class="meta-line">
+        {{ filename }} &rarr; <strong style="color:var(--fg-primary)">{{ target_column }}</strong>
+    </div>
+
+    <div class="step-list" id="step-list">
+        <div class="step-item" id="step-llm">
+            <span class="step-icon">🧠</span> LLM feature engineering plan
+        </div>
+        <div class="step-item" id="step-pre">
+            <span class="step-icon">⚙️</span> Data preprocessing
+        </div>
+        <div class="step-item" id="step-train">
+            <span class="step-icon">🤖</span> Training models
+        </div>
+        <div class="step-item" id="step-shap">
+            <span class="step-icon">🔍</span> SHAP explainability
+        </div>
+        <div class="step-item" id="step-save">
+            <span class="step-icon">💾</span> Saving results
+        </div>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+</div>
+
+<script>
+const JOB_ID = "{{ job_id }}";
+const circumference = 389.6;
+
+function setProgress(pct) {
+    const offset = circumference - (pct / 100) * circumference;
+    document.getElementById("ring-fill").style.strokeDashoffset = offset;
+    document.getElementById("ring-pct").textContent = pct + "%";
+}
+
+function setStep(id, state) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove("active", "done");
+    if (state) el.classList.add(state);
+}
+
+function updateSteps(pct) {
+    // Map progress ranges to step states
+    setStep("step-llm",   pct >= 15 ? "done" : pct >= 5  ? "active" : "");
+    setStep("step-pre",   pct >= 30 ? "done" : pct >= 15 ? "active" : "");
+    setStep("step-train", pct >= 82 ? "done" : pct >= 30 ? "active" : "");
+    setStep("step-shap",  pct >= 92 ? "done" : pct >= 82 ? "active" : "");
+    setStep("step-save",  pct >= 100? "done" : pct >= 92 ? "active" : "");
+}
+
+let pollInterval = setInterval(async () => {
+    try {
+        const res  = await fetch(`/api/task_status/${JOB_ID}`);
+        const data = await res.json();
+
+        setProgress(data.progress || 0);
+        updateSteps(data.progress || 0);
+
+        const msg = document.getElementById("status-msg");
+        if (data.message) msg.textContent = data.message;
+
+        if (data.status === "done") {
+            clearInterval(pollInterval);
+            msg.textContent = "✅ Complete! Redirecting...";
+            setTimeout(() => {
+                window.location.href = `/ml_results/${JOB_ID}`;
+            }, 800);
+        }
+
+        if (data.status === "error") {
+            clearInterval(pollInterval);
+            msg.textContent = "Training failed";
+            const box = document.getElementById("error-box");
+            box.style.display = "block";
+            box.textContent   = data.error || "Unknown error";
+        }
+    } catch(e) {
+        console.error("Poll error:", e);
+    }
+}, 2000);
+</script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+</body>
+</html>

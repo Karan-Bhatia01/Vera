@@ -10,118 +10,163 @@
 </head>
 <body>
 
-<header class="page-header">
-    <h1>⚙️ Data Preprocessing</h1>
-    <div class="meta">
-        <span class="filename-badge">{{ filename }}</span>
-        <span class="shape-badge">{{ shape[0] }} rows × {{ shape[1] }} cols</span>
-    </div>
-</header>
+{% include 'partials/navbar.html' %}
 
-<div class="page-body">
-<form method="POST" action="{{ url_for('preprocessing_inputs', filename=filename) }}">
+<main style="margin-top: 56px; padding: var(--space-8) 0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6);">
 
-    <!-- Target Column -->
-    <section class="section animate-in">
-        <p class="section-label">🎯 Target Column</p>
-        <p class="hint-text">Select a column to use as target for visualization (optional)</p>
-        <div class="field-row">
-            <select name="target_column" class="select-input">
-                <option value="">— None / Unsupervised —</option>
-                {% for col in columns %}
-                    <option value="{{ col }}" {% if col == previous_target %}selected{% endif %}>{{ col }}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </section>
+        <!-- PAGE HEADER -->
+        <header style="margin-bottom: var(--space-8);">
+            <h1 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                ⚙️ Data Preprocessing
+            </h1>
+            <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+                <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary);">
+                    📄 {{ filename }}
+                </span>
+                <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary);">
+                    {{ shape[0] }} rows × {{ shape[1] }} columns
+                </span>
+            </div>
+        </header>
 
-    <!-- Drop Columns -->
-    <section class="section animate-in">
-        <p class="section-label">❌ Column Removal</p>
-        <p class="hint-text">Select columns to remove before processing</p>
-        <div class="checkbox-grid">
-            {% for col in columns %}
-            <label class="checkbox-item">
-                <input type="checkbox" name="columns_to_drop" value="{{ col }}" {% if col in previous_columns_to_drop %}checked{% endif %}>
-                <span>{{ col }}</span>
-            </label>
-            {% endfor %}
-        </div>
-    </section>
+        <form method="POST" action="{{ url_for('preprocessing_inputs', filename=filename) }}">
 
-    <!-- Missing Value Strategy -->
-    <section class="section animate-in">
-        <p class="section-label">
-            🔧 Missing Value Strategy
-            {% if not has_nulls %}
-                <span class="no-nulls-badge">✓ No missing values</span>
-            {% endif %}
-        </p>
+            <!-- TARGET COLUMN SECTION -->
+            <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+                <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                    🎯 Target Column
+                </h2>
+                <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; font-size: var(--font-size-sm);">
+                    Select a column to use as target for visualization (optional)
+                </p>
+                <div>
+                    <label style="display: block; font-weight: 500; color: var(--fg-primary); margin-bottom: var(--space-2);">
+                        Target Column
+                    </label>
+                    <select name="target_column" style="width: 100%; padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--fg-primary); font-size: var(--font-size-md);">
+                        <option value="">— None / Unsupervised —</option>
+                        {% for col in columns %}
+                            <option value="{{ col }}" {% if col == previous_target %}selected{% endif %}>{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </section>
 
-        {% if has_nulls %}
-        <p class="hint-text">AI-suggested strategies pre-filled. Override as needed.</p>
-        <div class="tbl-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Column</th>
-                        <th>Null Count</th>
-                        <th>AI Suggestion</th>
-                        <th>Your Choice</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for col, count in null_counts.items() %}
-                    {% if count > 0 %}
-                    <tr>
-                        <td><strong>{{ col }}</strong></td>
-                        <td><span class="badge badge-warning">{{ count }}</span></td>
-                        <td>
-                            {% if col in ai_strategy %}
-                                <code style="background-color: rgba(79, 70, 229, 0.1); color: var(--accent-primary);">{{ ai_strategy[col] }}</code>
-                            {% else %}
-                                <span style="color: var(--fg-muted);">—</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <select name="missing_{{ col }}" class="select-input select-input--sm">
-                                {% set methods = ['mean', 'median', 'mode', 'ffill', 'bfill', 'zero', 'drop'] %}
-                                {% for method in methods %}
-                                    <option value="{{ method }}"
-                                        {% if previous_missing_strategy.get(col) == method %}selected
-                                        {% elif ai_strategy.get(col) == method %}selected
-                                        {% endif %}>
-                                        {{ method }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                    </tr>
-                    {% endif %}
+            <!-- DROP COLUMNS SECTION -->
+            <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+                <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                    ❌ Column Removal
+                </h2>
+                <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; font-size: var(--font-size-sm);">
+                    Select columns to remove before processing
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4);">
+                    {% for col in columns %}
+                    <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-2); border-radius: var(--radius-md); transition: background 0.2s;">
+                        <input 
+                            type="checkbox" 
+                            name="columns_to_drop" 
+                            value="{{ col }}" 
+                            {% if col in previous_columns_to_drop %}checked{% endif %}
+                            style="cursor: pointer; width: 18px; height: 18px;"
+                        >
+                        <span style="color: var(--fg-primary); font-size: var(--font-size-sm);">{{ col }}</span>
+                    </label>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div style="padding: var(--space-4); background-color: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: var(--radius-lg); color: var(--accent-success);">
-            ✓ Dataset has no missing values — this step will be skipped.
-        </div>
-        {% endif %}
-    </section>
+                </div>
+            </section>
 
-    <!-- Submit -->
-    <div class="form-footer">
-        <a class="btn btn-secondary" href="/ml?filename={{ filename }}">
-            Skip to ML →
-        </a>
-        <button type="submit" class="btn btn-primary btn-lg">
-            Run Preprocessing &amp; EDA →
-        </button>
+            <!-- MISSING VALUE STRATEGY SECTION -->
+            <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+                <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-6);">
+                    <h2 style="font-size: var(--font-size-xl); margin: 0; color: var(--fg-primary);">
+                        🔧 Missing Value Strategy
+                    </h2>
+                    {% if not has_nulls %}
+                        <span style="background: var(--accent-success); color: white; padding: var(--space-1) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-xs); font-weight: 600;">
+                            ✓ No missing values
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if has_nulls %}
+                <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; font-size: var(--font-size-sm);">
+                    AI-suggested strategies pre-filled. Override as needed.
+                </p>
+                <div style="overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-default);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="background: var(--bg-tertiary);">
+                            <tr>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Column</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Null Count</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">AI Suggestion</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Your Strategy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for col, count in null_counts.items() %}
+                            {% if count > 0 %}
+                            <tr>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                    <strong style="color: var(--fg-primary);">{{ col }}</strong>
+                                </td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                    <span style="background: var(--accent-warning); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs); font-weight: 600;">
+                                        {{ count }}
+                                    </span>
+                                </td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                    {% if col in ai_strategy %}
+                                        <code style="background: rgba(79, 70, 229, 0.1); color: var(--accent-primary); padding: 2px 6px; border-radius: 4px; font-size: var(--font-size-xs);">{{ ai_strategy[col] }}</code>
+                                    {% else %}
+                                        <span style="color: var(--fg-tertiary);">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                    <select name="missing_{{ col }}" style="padding: var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--fg-primary); font-size: var(--font-size-sm);">
+                                        {% set methods = ['mean', 'median', 'mode', 'ffill', 'bfill', 'zero', 'drop'] %}
+                                        {% for method in methods %}
+                                            <option value="{{ method }}"
+                                                {% if previous_missing_strategy.get(col) == method %}selected
+                                                {% elif ai_strategy.get(col) == method %}selected
+                                                {% endif %}>
+                                                {{ method }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="padding: var(--space-4); background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: var(--radius-lg); color: var(--accent-success);">
+                    ✓ Dataset has no missing values — this step will be skipped.
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- FORM FOOTER -->
+            <div style="display: flex; gap: var(--space-4); justify-content: flex-end; flex-wrap: wrap;">
+                <a class="btn btn-secondary" href="/ml?filename={{ filename }}" style="padding: var(--space-3) var(--space-6);">
+                    Skip to ML
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: var(--space-3) var(--space-6);">
+                    Run Preprocessing & EDA →
+                </button>
+            </div>
+
+        </form>
+
     </div>
-
-</form>
-</div>
+</main>
 
 <script src="{{ url_for('static', filename='js/modern-ui.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+
 </body>
 </html>

@@ -9,36 +9,77 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
-<header class="page-header">
-    <h1>🤖 ML Pipeline</h1>
-    <span class="filename-badge">{{ filename }}</span>
-</header>
-<div class="page-body">
-    <section class="section animate-in">
-        <p class="section-label">🎯 Select Target Column</p>
-        <p class="hint-text">
-            The LLM will automatically decide feature engineering, encoding,
-            model selection, and evaluation. Just pick your target
-        </p>
-        <form method="POST" action="{{ url_for('ml_pipeline_route', filename=filename) }}">
-            <div class="field-row">
-                <label for="target-select">Target Column for Prediction</label>
-                <select id="target-select" name="target_column" class="select-input" required>
-                    <option value="">— Select target column —</option>
-                    {% for col in columns %}
-                        <option value="{{ col }}">{{ col }}</option>
-                    {% endfor %}
-                </select>
-                <p class="hint-text" style="margin-top: var(--space-2); font-size: var(--font-size-sm);">This column will be used as the target variable for model training</p>
-            </div>
-            <div class="form-footer" style="border: none; margin-top: var(--space-8);">
-                <button type="submit" class="btn btn-primary btn-lg">
+
+{% include 'partials/navbar.html' %}
+
+<main style="margin-top: 56px; padding: var(--space-8) 0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6);">
+
+        <!-- PAGE HEADER -->
+        <header style="margin-bottom: var(--space-8);">
+            <h1 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                🤖 ML Pipeline
+            </h1>
+            <span style="background: var(--bg-secondary); border: 1px solid var(--border-default); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--fg-secondary); display: inline-block;">
+                📄 {{ filename }}
+            </span>
+        </header>
+
+        <!-- TARGET COLUMN FORM SECTION -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); max-width: 600px; margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                🎯 Select Target Column
+            </h2>
+            <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; line-height: 1.6;">
+                The LLM will automatically decide feature engineering, model selection, and evaluation. Just pick your target column for prediction.
+            </p>
+
+            <form method="POST" action="{{ url_for('ml_pipeline_route', filename=filename) }}">
+                <div style="margin-bottom: var(--space-6);">
+                    <label style="display: block; font-weight: 500; color: var(--fg-primary); margin-bottom: var(--space-2); font-size: var(--font-size-md);">
+                        Target Column for Prediction
+                    </label>
+                    <select 
+                        id="target-select" 
+                        name="target_column" 
+                        style="width: 100%; padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--fg-primary); font-size: var(--font-size-md);" 
+                        required
+                    >
+                        <option value="">— Select target column —</option>
+                        {% for col in columns %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    <p style="font-size: var(--font-size-sm); color: var(--fg-tertiary); margin: var(--space-2) 0 0 0;">
+                        This column will be used as the target variable for model training
+                    </p>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: var(--space-3);">
                     Run ML Pipeline →
                 </button>
-            </div>
-        </form>
-    </section>
-</div>
+            </form>
+        </section>
+
+        <!-- INFO CARD -->
+        <section style="background: rgba(79, 70, 229, 0.05); border: 1px solid var(--border-default); border-left: 3px solid var(--accent-primary); border-radius: var(--radius-lg); padding: var(--space-6); max-width: 600px;">
+            <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-3) 0; color: var(--accent-primary);">
+                ℹ How It Works
+            </h3>
+            <ul style="margin: 0; padding-left: var(--space-4); color: var(--fg-secondary); font-size: var(--font-size-sm);">
+                <li style="margin-bottom: var(--space-2);">AI-powered feature engineering and selection</li>
+                <li style="margin-bottom: var(--space-2);">Automatic model comparison (regression or classification)</li>
+                <li style="margin-bottom: var(--space-2);">Hyperparameter tuning and optimization</li>
+                <li>Performance metrics and insights on results</li>
+            </ul>
+        </section>
+
+    </div>
+</main>
+
 <script src="{{ url_for('static', filename='js/modern-ui.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+
 </body>
 </html>

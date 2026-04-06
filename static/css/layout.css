@@ -1,36 +1,62 @@
-/* ────────────────────────────────────────────────────────────────
-   PAGE LAYOUTS & NAVIGATION
-   ──────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PAGE LAYOUTS & LAYOUT UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* ────────────── Main Layout ────────────── */
+/* ────────────── CUSTOM FONTS ────────────── */
+
+@font-face {
+  font-family: Radio;
+  src: url(../assets/fonts/RadioGrotesk-Regular.otf);
+}
+
+@font-face {
+  font-family: 'Product Sans';
+  src: url(../assets/fonts/Product\ Sans\ Regular.ttf);
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url(../assets/fonts/GeistMonoVariableVF.ttf);
+}
+
+/* ────────────── Body & Main Layout ────────────── */
 
 body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-top: 56px; /* Navbar height */
 }
 
-/* ────────────── Header / Navbar ────────────── */
+main, .page-body, div[role="main"] {
+  flex: 1;
+}
+
+/* ────────────── Page Container ────────────── */
+
+.page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+/* ────────────── Page Header / Title Area ────────────── */
 
 .page-header {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: var(--space-4) var(--space-6);
-  margin: var(--space-4) auto;
-  max-width: 1200px;
-  width: 90%;
-  position: sticky;
-  top: var(--space-4);
-  z-index: 100;
-  backdrop-filter: blur(10px);
-  background-color: rgba(22, 22, 22, 0.95);
-  border-radius: 45px;
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+  border-radius: 0;
   text-align: center;
 }
 
 .page-header h1 {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
   font-size: var(--font-size-3xl);
+  font-family: var(--font-display, 'Radio', -apple-system, sans-serif);
+  color: var(--fg-primary);
 }
 
 .page-header .meta {
@@ -41,13 +67,15 @@ body {
   flex-wrap: wrap;
 }
 
+/* ────────────── Badges ────────────── */
+
 .filename-badge {
   padding: var(--space-2) var(--space-4);
   background-color: var(--accent-primary);
   color: white;
   border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .shape-badge {

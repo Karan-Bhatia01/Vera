@@ -3,256 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dataset Information — ClarityAI</title>
+    <title>Dataset Information — Vera</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
 
-<header class="page-header">
-    <div class="flex justify-between items-center">
-        <div>
-            <h1>📋 Dataset Overview</h1>
-            <span class="shape-badge">{{ analysis.shape[0] }} rows × {{ analysis.shape[1] }} columns</span>
-        </div>
-        <a class="btn btn-primary" href="{{ url_for('preprocessing_inputs', filename=request.args.get('filename')) }}">
-            Preprocess &amp; EDA →
-        </a>
-    </div>
-</header>
+{% include 'partials/navbar.html' %}
 
-<div class="page-body">
+<main style="margin-top: 56px; padding: var(--space-8) 0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6);">
 
-    <!-- AI INSIGHTS SECTION -->
-    <section class="section animate-in">
-        <p class="section-label">🤖 AI-Powered Analysis</p>
-
-        <!-- Summary -->
-        <div class="insights-panel">
-            <h3>Summary</h3>
-            <p>{{ ai_insights.summary }}</p>
-        </div>
-
-        <!-- Quality Flags -->
-        {% if ai_insights.quality_flags %}
-        <div style="margin-top: var(--space-8);">
-            <h3 style="color: var(--accent-warning); margin-bottom: var(--space-4);">⚠ Quality Flags</h3>
-            <div style="display: grid; gap: var(--space-4);">
-                {% for flag in ai_insights.quality_flags %}
-                <div class="card" style="border-left: 3px solid var(--accent-warning);">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div>
-                            <strong>{{ flag.column }}</strong>
-                            <span class="badge badge-warning" style="margin-left: var(--space-2);">{{ flag.severity }}</span>
-                        </div>
-                    </div>
-                    <p style="margin-top: var(--space-2); color: var(--fg-secondary);">{{ flag.issue }}</p>
-                    <p style="font-size: var(--font-size-sm); color: var(--fg-tertiary);">{{ flag.detail }}</p>
-                </div>
-                {% endfor %}
+        <!-- PAGE HEADER -->
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-8); flex-wrap: wrap; gap: var(--space-4);">
+            <div>
+                <h1 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                    📋 Dataset Overview
+                </h1>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0;">
+                    {{ analysis.shape[0] }} rows × {{ analysis.shape[1] }} columns
+                </p>
             </div>
-        </div>
-        {% endif %}
+            <a class="btn btn-primary" href="{{ url_for('preprocessing_inputs', filename=request.args.get('filename')) }}" style="padding: var(--space-4) var(--space-6);">
+                Preprocess & EDA →
+            </a>
+        </header>
 
-        <!-- Column Insights -->
-        {% if ai_insights.column_insights %}
-        <div style="margin-top: var(--space-8);">
-            <h3 style="color: var(--accent-primary); margin-bottom: var(--space-4);">✨ Column Insights</h3>
-            <div style="display: grid; gap: var(--space-3);">
-                {% for item in ai_insights.column_insights %}
-                <div style="padding: var(--space-4); background-color: var(--bg-tertiary); border-radius: var(--radius-md); border-left: 3px solid var(--accent-secondary);">
-                    <strong style="color: var(--accent-secondary);">{{ item.column }}</strong>
-                    <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary);">{{ item.insight }}</p>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
+        <!-- AI INSIGHTS SECTION -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8); animation: slideUp 0.3s ease-out;">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                🤖 AI-Powered Analysis
+            </h2>
 
-        <!-- Next Steps -->
-        {% if ai_insights.next_steps %}
-        <div style="margin-top: var(--space-8);">
-            <h3 style="color: var(--accent-success); margin-bottom: var(--space-4);">→ Recommended Next Steps</h3>
-            <ol style="list-style: none; padding: 0; display: grid; gap: var(--space-3);">
-                {% for step in ai_insights.next_steps %}
-                <li style="padding: var(--space-4); background-color: var(--bg-tertiary); border-radius: var(--radius-md); border-left: 3px solid var(--accent-success);">
-                    <strong style="color: var(--accent-success);">{{ step.title }}</strong>
-                    <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary); font-size: var(--font-size-sm);">{{ step.detail }}</p>
-                </li>
-                {% endfor %}
-            </ol>
-        </div>
-        {% endif %}
+            <!-- Summary -->
+            <div style="background: var(--bg-primary); border-left: 3px solid var(--accent-primary); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-6);">
+                <p style="color: var(--fg-secondary); margin: 0; line-height: 1.6;">
+                    {{ ai_insights.summary }}
+                </p>
+            </div>
 
-        <!-- Uncertainty Notes -->
-        {% if ai_insights.uncertainty_notes %}
-        <div style="margin-top: var(--space-8); padding: var(--space-4); background-color: rgba(159, 18, 57, 0.05); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
-            <h3 style="font-size: var(--font-size-lg); color: var(--fg-secondary); margin-top: 0;">ℹ Uncertainties &amp; Limitations</h3>
-            <p style="font-size: var(--font-size-sm); color: var(--fg-tertiary);">{{ ai_insights.uncertainty_notes }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- DATA STATISTICS -->
-    <section class="section animate-in">
-        <p class="section-label">📊 Data Statistics</p>
-        
-        <div class="results-grid">
-            <div class="result-card">
-                <h4>Memory Usage</h4>
-                <p class="result-metric-value">{{ analysis.memory_usage_mb }} MB</p>
-            </div>
-            <div class="result-card">
-                <h4>Total Rows</h4>
-                <p class="result-metric-value">{{ analysis.shape[0] }}</p>
-            </div>
-            <div class="result-card">
-                <h4>Total Columns</h4>
-                <p class="result-metric-value">{{ analysis.shape[1] }}</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- COLUMNS BREAKDOWN -->
-    <section class="section animate-in">
-        <p class="section-label">🏷 Column Types</p>
-        
-        {% if analysis.numeric_columns %}
-        <div style="margin-bottom: var(--space-6);">
-            <h3 style="font-size: var(--font-size-lg); color: var(--fg-primary); margin-bottom: var(--space-3);">Numeric Columns</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                {% for col in analysis.numeric_columns %}
-                    <span class="badge" style="background-color: var(--accent-secondary);">{{ col }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if analysis.categorical_columns %}
-        <div>
-            <h3 style="font-size: var(--font-size-lg); color: var(--fg-primary); margin-bottom: var(--space-3);">Categorical Columns</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                {% for col in analysis.categorical_columns %}
-                    <span class="badge badge-secondary">{{ col }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- NULL VALUES TABLE -->
-    <section class="section animate-in">
-        <p class="section-label">⚠ Missing Values</p>
-        <div class="tbl-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Column</th>
-                        <th>Null Count</th>
-                        <th>% Missing</th>
-                        <th>Distribution</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for col, count in analysis.null_values.items() %}
-                    <tr>
-                        <td><strong>{{ col }}</strong></td>
-                        <td>
-                            {% if count == 0 %}
-                                <span class="badge badge-success">0</span>
-                            {% else %}
-                                <span class="badge badge-warning">{{ count }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ analysis.null_percentages[col]}}%</td>
-                        <td>
-                            {% if count > 0 %}
-                            <div style="width: 100%; height: 8px; background-color: var(--bg-tertiary); border-radius: var(--radius-full); overflow: hidden;">
-                                <div style="height: 100%; width: {{ analysis.null_percentages[col] }}%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));"></div>
+            <!-- Quality Flags -->
+            {% if ai_insights.quality_flags %}
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="color: var(--accent-warning); margin: 0 0 var(--space-4) 0; font-size: var(--font-size-lg);">
+                    ⚠ Quality Flags
+                </h3>
+                <div style="display: grid; gap: var(--space-4);">
+                    {% for flag in ai_insights.quality_flags %}
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border-default); border-left: 3px solid var(--accent-warning); border-radius: var(--radius-md); padding: var(--space-4);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2);">
+                            <div>
+                                <strong style="color: var(--fg-primary);">{{ flag.column }}</strong>
+                                <span style="display: inline-block; background: var(--accent-warning); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs); margin-left: var(--space-2);">
+                                    {{ flag.severity }}
+                                </span>
                             </div>
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                    </tr>
+                        </div>
+                        <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary); font-size: var(--font-size-md);">
+                            {{ flag.issue }}
+                        </p>
+                        <p style="font-size: var(--font-size-sm); color: var(--fg-tertiary); margin: var(--space-1) 0 0 0;">
+                            {{ flag.detail }}
+                        </p>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- DUPLICATES -->
-    <section class="section animate-in">
-        <p class="section-label">🔄 Data Quality</p>
-        {% if analysis.duplicate_rows > 0 %}
-            <div style="padding: var(--space-4); background-color: rgba(245, 158, 11, 0.1); border: 1px solid var(--accent-warning); border-radius: var(--radius-lg); color: var(--accent-warning);">
-                ⚠ <strong>{{ analysis.duplicate_rows }} duplicate rows</strong> detected in dataset
+                </div>
             </div>
-        {% else %}
-            <div style="padding: var(--space-4); background-color: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: var(--radius-lg); color: var(--accent-success);">
-                ✓ No duplicate rows found
-            </div>
-        {% endif %}
-    </section>
+            {% endif %}
 
-    <!-- UNIQUE VALUES PREVIEW -->
-    <section class="section animate-in">
-        <p class="section-label">🎯 Unique Values Preview</p>
-        <div class="card-grid">
-            {% for col, meta in unique.items() %}
-            <div class="card">
-                <h4>{{ col }}</h4>
-                <p style="color: var(--fg-tertiary); font-size: var(--font-size-sm); margin-bottom: var(--space-3);">{{ meta['total_unique'] }} unique values</p>
+            <!-- Column Insights -->
+            {% if ai_insights.column_insights %}
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="color: var(--accent-primary); margin: 0 0 var(--space-4) 0; font-size: var(--font-size-lg);">
+                    ✨ Column Insights
+                </h3>
+                <div style="display: grid; gap: var(--space-3);">
+                    {% for item in ai_insights.column_insights %}
+                    <div style="padding: var(--space-4); background: var(--bg-tertiary); border-radius: var(--radius-md); border-left: 3px solid var(--accent-secondary);">
+                        <strong style="color: var(--accent-secondary);">{{ item.column }}</strong>
+                        <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary); font-size: var(--font-size-sm);">
+                            {{ item.insight }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Next Steps -->
+            {% if ai_insights.next_steps %}
+            <div style="margin-bottom: var(--space-8);">
+                <h3 style="color: var(--accent-success); margin: 0 0 var(--space-4) 0; font-size: var(--font-size-lg);">
+                    → Recommended Next Steps
+                </h3>
+                <div style="display: grid; gap: var(--space-3);">
+                    {% for step in ai_insights.next_steps %}
+                    <div style="padding: var(--space-4); background: var(--bg-tertiary); border-radius: var(--radius-md); border-left: 3px solid var(--accent-success);">
+                        <strong style="color: var(--accent-success);">{{ step.title }}</strong>
+                        <p style="margin: var(--space-2) 0 0 0; color: var(--fg-secondary); font-size: var(--font-size-sm);">
+                            {{ step.detail }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Uncertainty Notes -->
+            {% if ai_insights.uncertainty_notes %}
+            <div style="padding: var(--space-4); background: rgba(159, 18, 57, 0.05); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
+                <h3 style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0 0 var(--space-2) 0;">
+                    ℹ Uncertainties & Limitations
+                </h3>
+                <p style="font-size: var(--font-size-sm); color: var(--fg-tertiary); margin: 0;">
+                    {{ ai_insights.uncertainty_notes }}
+                </p>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- DATA STATISTICS -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                📊 Data Statistics
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md); text-align: center;">
+                    <p style="color: var(--fg-secondary); margin: 0 0 var(--space-2) 0; font-size: var(--font-size-sm);">
+                        Memory Usage
+                    </p>
+                    <p style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--accent-primary); margin: 0;">
+                        {{ analysis.memory_usage_mb }} MB
+                    </p>
+                </div>
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md); text-align: center;">
+                    <p style="color: var(--fg-secondary); margin: 0 0 var(--space-2) 0; font-size: var(--font-size-sm);">
+                        Total Rows
+                    </p>
+                    <p style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--accent-primary); margin: 0;">
+                        {{ analysis.shape[0] | default(0) }}
+                    </p>
+                </div>
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md); text-align: center;">
+                    <p style="color: var(--fg-secondary); margin: 0 0 var(--space-2) 0; font-size: var(--font-size-sm);">
+                        Total Columns
+                    </p>
+                    <p style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--accent-primary); margin: 0;">
+                        {{ analysis.shape[1] | default(0) }}
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNS BREAKDOWN -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                🏷 Column Types
+            </h2>
+            
+            {% if analysis.numeric_columns %}
+            <div style="margin-bottom: var(--space-6);">
+                <h3 style="font-size: var(--font-size-lg); color: var(--fg-primary); margin: 0 0 var(--space-3) 0;">
+                    Numeric Columns
+                </h3>
                 <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
-                    {% for val in meta['values'] %}
-                        <span class="badge badge-secondary" style="font-size: var(--font-size-xs);">{{ val }}</span>
+                    {% for col in analysis.numeric_columns %}
+                        <span style="background: var(--accent-secondary); color: white; padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); font-size: var(--font-size-sm);">
+                            {{ col }}
+                        </span>
                     {% endfor %}
                 </div>
-                {% if meta['truncated'] %}
-                    <p style="font-size: var(--font-size-xs); color: var(--fg-muted); margin-top: var(--space-2);">+{{ meta['total_unique'] - 10 }} more values</p>
-                {% endif %}
             </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <!-- DESCRIPTIVE STATISTICS -->
-    <section class="section animate-in">
-        <p class="section-label">📈 Descriptive Statistics</p>
-        <div style="display: grid; gap: var(--space-4);">
-            {% for col, stats in analysis.describe.items() %}
-            <div style="border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-4); background-color: var(--bg-tertiary);">
-                <h4 style="margin-top: 0; color: var(--accent-primary);">{{ col }}</h4>
-                <div class="tbl-wrap" style="margin-top: var(--space-3);">
-                    <table>
-                        <thead>
-                            <tr><th>Statistic</th><th>Value</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for stat, value in stats.items() %}
-                            <tr>
-                                <td style="font-weight: 500;">{{ stat }}</td>
-                                <td>
-                                    {% if value is not none %}
-                                        <code style="background-color: var(--bg-secondary); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">{{ "%.6g" | format(value) if value is number else value }}</code>
-                                    {% else %}
-                                        <span style="color: var(--fg-muted);">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            {% endif %}
+            
+            {% if analysis.categorical_columns %}
+            <div>
+                <h3 style="font-size: var(--font-size-lg); color: var(--fg-primary); margin: 0 0 var(--space-3) 0;">
+                    Categorical Columns
+                </h3>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                    {% for col in analysis.categorical_columns %}
+                        <span style="background: var(--bg-tertiary); color: var(--fg-secondary); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); font-size: var(--font-size-sm); border: 1px solid var(--border-default);">
+                            {{ col }}
+                        </span>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
-        </div>
-    </section>
-    </section>
+            {% endif %}
+        </section>
 
-</div>
+        <!-- NULL VALUES TABLE -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                ⚠ Missing Values
+            </h2>
+            <div style="overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-default);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: var(--bg-tertiary);">
+                        <tr>
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Column</th>
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Null Count</th>
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">% Missing</th>
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Distribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for col, count in analysis.null_values.items() %}
+                        <tr>
+                            <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                <strong style="color: var(--fg-primary);">{{ col }}</strong>
+                            </td>
+                            <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                {% if count == 0 %}
+                                    <span style="background: var(--accent-success); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                                        0
+                                    </span>
+                                {% else %}
+                                    <span style="background: var(--accent-warning); color: white; padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                                        {{ count }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                {{ analysis.null_percentages[col] | default(0) }}%
+                            </td>
+                            <td style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                                {% if count > 0 %}
+                                <div style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                                    <div style="height: 100%; width: {{ analysis.null_percentages[col] | default(0) }}%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));"></div>
+                                </div>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- DUPLICATES -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                🔄 Data Quality
+            </h2>
+            {% if analysis.duplicate_rows > 0 %}
+                <div style="padding: var(--space-4); background: rgba(245, 158, 11, 0.1); border: 1px solid var(--accent-warning); border-radius: var(--radius-lg); color: var(--accent-warning);">
+                    ⚠ <strong>{{ analysis.duplicate_rows }} duplicate rows</strong> detected in dataset
+                </div>
+            {% else %}
+                <div style="padding: var(--space-4); background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); border-radius: var(--radius-lg); color: var(--accent-success);">
+                    ✓ No duplicate rows found
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- UNIQUE VALUES PREVIEW -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                🎯 Unique Values Preview
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4);">
+                {% for col, meta in unique.items() %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <h4 style="font-size: var(--font-size-md); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        {{ col }}
+                    </h4>
+                    <p style="color: var(--fg-tertiary); font-size: var(--font-size-sm); margin: 0 0 var(--space-3) 0;">
+                        {{ meta['total_unique'] }} unique values
+                    </p>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                        {% for val in meta['values'] %}
+                            <span style="background: var(--bg-tertiary); color: var(--fg-secondary); padding: 2px 8px; border-radius: 4px; font-size: var(--font-size-xs);">
+                                {{ val | string | truncate(15) }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    {% if meta['truncated'] %}
+                        <p style="font-size: var(--font-size-xs); color: var(--fg-tertiary); margin-top: var(--space-2);">
+                            +{{ meta['total_unique'] - 10 }} more values
+                        </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- DESCRIPTIVE STATISTICS -->
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6);;">
+            <h2 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-6) 0; color: var(--fg-primary);">
+                📈 Descriptive Statistics
+            </h2>
+            <div style="display: grid; gap: var(--space-4);">
+                {% for col, stats in analysis.describe.items() %}
+                <div style="border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-4); background: var(--bg-tertiary);">
+                    <h4 style="margin: 0 0 var(--space-3) 0; color: var(--accent-primary); font-size: var(--font-size-lg);">
+                        {{ col }}
+                    </h4>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: var(--bg-secondary);">
+                                <tr>
+                                    <th style="padding: var(--space-2); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Statistic</th>
+                                    <th style="padding: var(--space-2); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat, value in stats.items() %}
+                                <tr>
+                                    <td style="padding: var(--space-2); font-weight: 500; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">{{ stat }}</td>
+                                    <td style="padding: var(--space-2); border-bottom: 1px solid var(--border-default);">
+                                        {% if value is not none %}
+                                            <code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-size: var(--font-size-xs); color: var(--accent-primary);">
+                                                {{ "%.6g" | format(value) if value is number else value }}
+                                            </code>
+                                        {% else %}
+                                            <span style="color: var(--fg-tertiary);">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+    </div>
+</main>
 
 <script src="{{ url_for('static', filename='js/modern-ui.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+
 </body>
 </html>

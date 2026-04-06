@@ -9,3 +9,6 @@ seaborn
 
 python-dotenv
 openai
+
+faiss-cpu
+shap

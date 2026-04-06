@@ -227,9 +227,12 @@ class MLPipeline:
                 if col in planned:
                     continue
                 if X[col].dtype == object:
-                    if X[col].nunique() <= 15:
+                    # Only onehot encode if cardinality is VERY low (<=10 unique values)
+                    # This prevents memory issues from high-cardinality features
+                    if X[col].nunique() <= 10:
                         onehot_cols.append(col)
                     else:
+                        # Drop high-cardinality columns to save memory
                         X.drop(columns=[col], inplace=True)
                 else:
                     numeric_cols.append(col)
@@ -238,6 +241,32 @@ class MLPipeline:
             ordinal_cols = [c for c in ordinal_cols if c in X.columns]
             onehot_cols  = [c for c in onehot_cols  if c in X.columns]
             numeric_cols = [c for c in numeric_cols  if c in X.columns]
+
+            # MEMORY PROTECTION: Limit onehot columns to prevent feature explosion
+            # Estimate total onehot features: sum of unique values for each column
+            onehot_feature_count = sum(X[c].nunique() for c in onehot_cols)
+            if onehot_feature_count > 50:
+                logging.warning(
+                    "⚠️ OneHot encoding would create %d features (memory issues risk)",
+                    onehot_feature_count
+                )
+                # Sort by cardinality and keep only lowest-cardinality columns
+                onehot_cols_with_card = [(c, X[c].nunique()) for c in onehot_cols]
+                onehot_cols_with_card.sort(key=lambda x: x[1])  # Sort by cardinality
+                
+                # Keep cumulative features under 50
+                kept_cols = []
+                cumulative = 0
+                for col, card in onehot_cols_with_card:
+                    if cumulative + card <= 50:
+                        kept_cols.append(col)
+                        cumulative += card
+                    else:
+                        logging.warning(f"    Dropping {col} ({card} unique values) to save memory")
+                        X.drop(columns=[col], inplace=True)
+                
+                onehot_cols = kept_cols
+                logging.info(f"    Keeping {len(onehot_cols)} onehot columns with ~{cumulative} features")
 
             # Build ordinal categories list - handle "auto" properly for sklearn
             ordinal_categories = []
@@ -254,7 +283,7 @@ class MLPipeline:
             # If no explicit categories provided, let sklearn infer all from data
             ordinal_categories = ordinal_categories if has_explicit_cats else "auto"
 
-            # ColumnTransformer
+            # ColumnTransformer with memory-efficient encoders
             transformers = []
             if numeric_cols:
                 transformers.append(("num", StandardScaler(), numeric_cols))
@@ -269,9 +298,13 @@ class MLPipeline:
                 ))
             if onehot_cols:
                 from sklearn.preprocessing import OneHotEncoder
+                # Use sparse_output=False for compatibility, but memory is protected above
                 transformers.append((
                     "ohe",
-                    OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                    OneHotEncoder(
+                        handle_unknown="ignore",
+                        sparse_output=False
+                    ),
                     onehot_cols,
                 ))
 
@@ -285,8 +318,21 @@ class MLPipeline:
                 stratify=y if problem_type == "classification" else None,
             )
 
-            X_train = preprocessor.fit_transform(X_train)
-            X_test  = preprocessor.transform(X_test)
+            # Log preprocessing info before transform
+            logging.info(
+                "Preprocessing info: numeric=%d, ordinal=%d, onehot=%d",
+                len(numeric_cols), len(ordinal_cols), len(onehot_cols)
+            )
+
+            try:
+                X_train = preprocessor.fit_transform(X_train)
+                X_test  = preprocessor.transform(X_test)
+            except MemoryError as e:
+                logging.error("Memory error during preprocessing: %s", e)
+                logging.error("Input shape: %s, Data size: ~%.2f GiB", 
+                            X_train.shape, (X_train.shape[0] * X_train.shape[1] * 8 / 1e9))
+                raise Exception(f"Insufficient memory for preprocessing. "
+                              f"Try reducing dataset size or disabling one-hot encoding. Error: {e}")
 
             # Recover feature names
             try:
@@ -428,6 +474,7 @@ class MLPipeline:
         results: dict[str, Any],
         problem_type: str,
         feature_plan: dict,
+        shap_data: dict | None = None,
     ) -> str:
         """
         Save each model's .pkl to GridFS.
@@ -476,6 +523,7 @@ class MLPipeline:
                 "model_gridfs_ids": model_gridfs_ids,
                 "best_model":      best_name,
                 "rank_metric":     rank_metric,
+                "shap":            shap_data or {},
             }
 
             result = self.col.insert_one(doc)
@@ -486,54 +534,176 @@ class MLPipeline:
             raise CustomException(e, sys) from e
 
     # ── Full pipeline ──────────────────────────────────────────────────────────
-    def run(self) -> dict[str, Any]:
+    def run(self, progress_callback=None) -> dict[str, Any]:
         """
         Execute the full pipeline end-to-end.
+
+        Args:
+          progress_callback: Optional callable(pct, msg) for progress tracking
 
         Returns
         -------
         {
+          "filename":        str,
+          "target_column":   str,
           "problem_type":    str,
           "feature_plan":    dict,
           "results":         {model_name: {metrics, feature_importance}},
           "best_model":      str,
           "rank_metric":     str,
           "mongo_doc_id":    str,
+          "shap":            dict with SHAP data,
         }
         """
+        def progress(pct: int, msg: str):
+            if progress_callback:
+                progress_callback(pct, msg)
+            logging.info("[%d%%] %s", pct, msg)
+
         try:
             logging.info("=== ML Pipeline starting for '%s' ===", self.filename)
 
             # Step 1 — LLM feature plan
+            progress(5, "Asking LLM for feature engineering plan...")
             feature_plan = self.llm_feature_plan()
 
             # Step 2 — detect problem type
+            progress(15, "Detecting problem type...")
             problem_type = self.detect_problem_type()
 
             # Step 3 — preprocess
+            progress(25, "Preprocessing data...")
             X_train, X_test, y_train, y_test, feature_names, le = self.preprocess(
                 feature_plan, problem_type
             )
 
             # Step 4 + 5 — train + evaluate
-            results = self.train_and_evaluate(
-                X_train, X_test, y_train, y_test,
-                feature_names, problem_type, le,
-            )
+            models = self._get_models(problem_type)
+            n_models = len(models)
+            results = {}
 
-            # Step 6 — save to MongoDB
-            mongo_id = self.save_to_mongo(results, problem_type, feature_plan)
+            for i, (name, model) in enumerate(models.items()):
+                pct = 30 + int((i / n_models) * 50)
+                progress(pct, f"Training {name}... ({i+1}/{n_models} models complete)")
+                try:
+                    model.fit(X_train, y_train)
+                    y_pred = model.predict(X_test)
 
-            # Strip model objects before returning (not JSON-serialisable)
+                    if problem_type == "classification":
+                        metrics = {
+                            "accuracy": round(accuracy_score(y_test, y_pred), 4),
+                            "f1": round(
+                                f1_score(
+                                    y_test, y_pred, average="weighted", zero_division=0
+                                ),
+                                4,
+                            ),
+                            "precision": round(
+                                precision_score(
+                                    y_test, y_pred, average="weighted", zero_division=0
+                                ),
+                                4,
+                            ),
+                            "recall": round(
+                                recall_score(
+                                    y_test, y_pred, average="weighted", zero_division=0
+                                ),
+                                4,
+                            ),
+                        }
+                        # ROC-AUC (binary only)
+                        try:
+                            y_prob = model.predict_proba(X_test)
+                            if y_prob.shape[1] == 2:
+                                metrics["roc_auc"] = round(
+                                    roc_auc_score(y_test, y_prob[:, 1]), 4
+                                )
+                        except Exception:
+                            pass
+
+                        cm = confusion_matrix(y_test, y_pred).tolist()
+                        metrics["confusion_matrix"] = cm
+
+                    else:  # regression
+                        metrics = {
+                            "r2": round(r2_score(y_test, y_pred), 4),
+                            "rmse": round(
+                                np.sqrt(mean_squared_error(y_test, y_pred)), 4
+                            ),
+                            "mae": round(mean_absolute_error(y_test, y_pred), 4),
+                        }
+
+                    # Feature importance
+                    fi = None
+                    if hasattr(model, "feature_importances_"):
+                        fi = dict(
+                            zip(
+                                feature_names,
+                                [round(float(v), 6) for v in model.feature_importances_],
+                            )
+                        )
+                        fi = dict(sorted(fi.items(), key=lambda x: x[1], reverse=True)[:15])
+                    elif hasattr(model, "coef_"):
+                        coef = (
+                            model.coef_.flatten()
+                            if model.coef_.ndim > 1
+                            else model.coef_
+                        )
+                        fi = dict(
+                            zip(
+                                feature_names,
+                                [round(float(v), 6) for v in coef],
+                            )
+                        )
+                        fi = dict(sorted(fi.items(), key=lambda x: abs(x[1]), reverse=True)[: 15])
+
+                    results[name] = {
+                        "metrics": metrics,
+                        "feature_importance": fi,
+                        "model_object": model,
+                    }
+                    logging.info("Trained %s: %s", name, metrics)
+
+                except Exception as exc:
+                    logging.warning("Model %s failed: %s", name, exc)
+
+            # Determine best model
             rank_metric = "accuracy" if problem_type == "classification" else "r2"
-            best_model  = max(
+            best_model = max(
                 results,
                 key=lambda n: results[n]["metrics"].get(rank_metric, float("-inf")),
             )
 
+            # Step 7 — SHAP for best model only
+            progress(82, f"Running SHAP for {best_model}...")
+            shap_data = {}
+            try:
+                from src.components.shap_explainer import SHAPExplainer
+
+                best_obj = results[best_model]["model_object"]
+                explainer = SHAPExplainer(
+                    model=best_obj,
+                    X_train=X_train,
+                    X_test=X_test,
+                    feature_names=feature_names,
+                    problem_type=problem_type,
+                )
+                shap_data = explainer.run_all()
+                shap_data["model_name"] = best_model
+                logging.info("SHAP completed for %s", best_model)
+            except Exception as shap_err:
+                logging.warning("SHAP skipped: %s", shap_err)
+
+            # Step 8 — save to MongoDB
+            progress(92, "Saving to MongoDB...")
+            mongo_id = self.save_to_mongo(results, problem_type, feature_plan, shap_data)
+
+            progress(100, "Pipeline complete!")
+
+            # Strip model objects before returning (not JSON-serialisable)
             clean_results = {
                 name: {
-                    "metrics":            data["metrics"],
+                    "metrics": data["metrics"],
                     "feature_importance": data.get("feature_importance"),
                 }
                 for name, data in results.items()
@@ -551,12 +721,15 @@ class MLPipeline:
             logging.info("=== ML Pipeline complete. Best: %s ===", best_model)
 
             return {
-                "problem_type":  problem_type,
-                "feature_plan":  feature_plan,
-                "results":       clean_results,
-                "best_model":    best_model,
-                "rank_metric":   rank_metric,
-                "mongo_doc_id":  mongo_id,
+                "filename": self.filename,
+                "target_column": self.target_column,
+                "problem_type": problem_type,
+                "feature_plan": feature_plan,
+                "results": clean_results,
+                "best_model": best_model,
+                "rank_metric": rank_metric,
+                "mongo_doc_id": mongo_id,
+                "shap": shap_data,
             }
 
         except Exception as e:

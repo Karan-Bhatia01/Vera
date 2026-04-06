@@ -3,184 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vera — From raw data to model-ready insights</title>
+    <title>Vera — AI-Powered Data Intelligence</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/vera_landing.css') }}">
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside class="landing-sidebar" id="sidebar">
-    <div class="landing-sidebar-header">
-        <div class="landing-sidebar-logo">
-            <span>✨</span>Vera
-        </div>
-    </div>
+{% include 'partials/navbar.html' %}
 
-    <ul class="landing-nav">
-        <li><a href="#problem" class="nav-link active" onclick="setActive(this)">Problem</a></li>
-        <li><a href="#solution" class="nav-link" onclick="setActive(this)">Solution</a></li>
-        <li><a href="{{ url_for('index') }}" class="nav-link" onclick="handleUpload(event)">Upload</a></li>
-    </ul>
+<main style="margin-top: 56px;">
 
-    <div class="landing-divider"></div>
-
-    <div class="landing-sidebar-footer">
-        <p>Transform raw data into model-ready insights automatically.</p>
-    </div>
-</aside>
-
-<!-- HAMBURGER -->
-<button class="hamburger" id="hamburger" onclick="toggleSidebar()">
-    <span></span>
-    <span></span>
-    <span></span>
-</button>
-
-<!-- MAIN -->
-<main class="landing-main">
-    <!-- HERO -->
-    <div class="landing-hero">
-        <div class="landing-hero-content">
-            <h1>Vera</h1>
-            <p class="landing-tagline">From raw data to model-ready insights — without writing a line of code.</p>
-            <p class="landing-description">Upload your dataset. Vera handles the rest — analysis, insights, and machine learning.</p>
-            <div class="landing-cta">
-                <a href="{{ url_for('index') }}" class="landing-btn">Get Started</a>
+    <!-- HERO SECTION -->
+    <section style="background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); padding: var(--space-8) var(--space-6); text-align: center; border-bottom: 1px solid var(--border-default);">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="animation: slideUp 0.6s ease-out;">
+                <h1 style="font-size: clamp(2rem, 8vw, 4rem); margin: 0 0 var(--space-4) 0; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                    Vera
+                </h1>
+                <p style="font-size: var(--font-size-2xl); color: var(--fg-secondary); margin: 0 0 var(--space-4) 0; font-weight: 500;">
+                    From raw data to model-ready insights — without writing a line of code.
+                </p>
+                <p style="font-size: var(--font-size-lg); color: var(--fg-tertiary); margin: 0 0 var(--space-8) 0; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Upload your dataset. Vera handles the rest — cleaning, analysis, and machine learning.
+                </p>
+                
+                <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary" style="padding: var(--space-4) var(--space-8);">
+                        Get Started →
+                    </a>
+                    <a href="#features" class="btn btn-secondary" style="padding: var(--space-4) var(--space-8);">
+                        See How It Works
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- SECTIONS -->
-    <div class="landing-sections">
-        <!-- PROBLEM -->
-        <section class="landing-section" id="problem">
-            <h2>The Problem</h2>
-            <div class="problem-items">
-                <div class="problem-item">
-                    <p>Data analysts and small teams spend 60–70% of their time on repetitive, low-value tasks — cleaning messy datasets, writing preprocessing code, comparing models, and interpreting charts manually.</p>
-                </div>
-                <div class="problem-item">
-                    <p>Most tools either require coding expertise or enforce rigid workflows, creating a gap between raw data and usable insights.</p>
-                </div>
-                <div class="problem-item">
-                    <p>For non-specialists, this gap is even larger — limiting their ability to extract value from data despite having domain knowledge.</p>
-                </div>
-            </div>
-        </section>
+    <!-- FEATURES SECTION -->
+    <section style="max-width: 1200px; margin: 0 auto; padding: var(--space-8) var(--space-6); scroll-margin-top: 100px;" id="features">
+        <div style="text-align: center; margin-bottom: var(--space-8);">
+            <h2 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                What Vera Does
+            </h2>
+            <p style="font-size: var(--font-size-lg); color: var(--fg-secondary); margin: 0;">
+                Automate your entire ML pipeline
+            </p>
+        </div>
 
-        <!-- SOLUTION -->
-        <section class="landing-section" id="solution">
-            <h2>The Solution</h2>
-            <p class="solution-intro">Vera is an end-to-end platform that automates the entire data intelligence workflow — from raw CSV to production-ready insights and trained models.</p>
-            
-            <div class="solution-grid">
-                <div class="feature-card">
-                    <span class="feature-icon">📊</span>
-                    <h3>AI Dataset Understanding</h3>
-                    <p>Automatic summaries, quality flags, and column-level insights powered by LLM analysis.</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">🧹</span>
-                    <h3>Guided Preprocessing</h3>
-                    <p>AI-suggested data cleaning strategies for missing values, outliers, and encoding decisions.</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">📈</span>
-                    <h3>Automated EDA</h3>
-                    <p>Univariate, bivariate, and trivariate visualizations with on-demand AI explanations.</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">🤖</span>
-                    <h3>ML Pipeline Automation</h3>
-                    <p>Train 9 model families in parallel — from Logistic Regression to XGBoost and LightGBM.</p>
-                </div>
-                <div class="feature-card">
-                    <span class="feature-icon">🎯</span>
-                    <h3>Model Insights</h3>
-                    <p>Rankings, feature importance, confusion matrices, and performance metrics at a glance.</p>
-                </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-6);">
+            <!-- Feature 1 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">📊</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    Smart Analysis
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    AI-powered data understanding. Vera analyzes your dataset, identifies patterns, and flags data quality issues automatically.
+                </p>
             </div>
 
-            <div class="solution-closing">
-                Vera removes the friction between data and decisions — so you can focus on insights, not implementation.
+            <!-- Feature 2 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">⚙️</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    Auto ML
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    End-to-end preprocessing and model training. From feature engineering to hyperparameter tuning, Vera handles it all.
+                </p>
             </div>
-        </section>
-    </div>
+
+            <!-- Feature 3 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">✨</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    RAG Assistant
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    Ask questions about your data. Our AI-powered chatbot answers queries using retrieval-augmented generation.
+                </p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">📈</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    Visual Insights
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    Automatic visualizations with AI-powered explanations for every chart, pattern, and anomaly.
+                </p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">🎯</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    Model Comparison
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    Train and compare models head-to-head with confusion matrices, feature importance, and performance scores.
+                </p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <div style="font-size: 48px; margin-bottom: var(--space-4);">💾</div>
+                <h3 style="font-size: var(--font-size-xl); margin: 0 0 var(--space-3) 0; color: var(--fg-primary);">
+                    Export & Deploy
+                </h3>
+                <p style="font-size: var(--font-size-md); color: var(--fg-secondary); margin: 0; flex: 1;">
+                    Download trained models as .pkl files or export entire analysis as Jupyter Notebooks.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS SECTION -->
+    <section style="background: var(--bg-secondary); border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); padding: var(--space-8) var(--space-6);">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <h2 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-8) 0; text-align: center; color: var(--fg-primary);">
+                How It Works
+            </h2>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-6);">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: var(--space-4); background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        1
+                    </div>
+                    <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        Upload CSV
+                    </h3>
+                    <p style="color: var(--fg-secondary); margin: 0;">
+                        Drop your dataset and let Vera analyze it instantly.
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: var(--space-4); background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        2
+                    </div>
+                    <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        Explore & Preprocess
+                    </h3>
+                    <p style="color: var(--fg-secondary); margin: 0;">
+                        Review AI insights and clean your data with guided suggestions.
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: var(--space-4); background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        3
+                    </div>
+                    <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        Train Models
+                    </h3>
+                    <p style="color: var(--fg-secondary); margin: 0;">
+                        Select your target and let AI handle model selection and tuning.
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: var(--space-4); background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        4
+                    </div>
+                    <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        Compare Results
+                    </h3>
+                    <p style="color: var(--fg-secondary); margin: 0;">
+                        Analyze performance, feature importance, and detailed metrics.
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: var(--space-4); background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        5
+                    </div>
+                    <h3 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                        Export & Use
+                    </h3>
+                    <p style="color: var(--fg-secondary); margin: 0;">
+                        Download models, notebooks, and deploy to production.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section style="max-width: 1200px; margin: 0 auto; padding: var(--space-8) var(--space-6); text-align: center;">
+        <h2 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+            Ready to Transform Your Data?
+        </h2>
+        <p style="font-size: var(--font-size-lg); color: var(--fg-secondary); margin: 0 0 var(--space-6) 0;">
+            Start with a free upload. No credit card required.
+        </p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary" style="padding: var(--space-4) var(--space-8); font-size: var(--font-size-lg);">
+            Upload Your First Dataset
+        </a>
+    </section>
+
+    <!-- FOOTER -->
+    <footer style="background: var(--bg-secondary); border-top: 1px solid var(--border-default); padding: var(--space-6) var(--space-6); margin-top: var(--space-8);">
+        <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+            <p style="color: var(--fg-tertiary); font-size: var(--font-size-sm); margin: 0;">
+                © 2026 Karan-Bhatia. All rights reserved. | Powered by OXLO MODELS | Built with ✨ for data scientists and analysts.
+            </p>
+        </div>
+    </footer>
+
 </main>
 
-<script>
-    function setActive(element) {
-        const links = document.querySelectorAll('.nav-link');
-        links.forEach(link => link.classList.remove('active'));
-        element.classList.add('active');
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
 
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger');
-        if (sidebar.classList.contains('active')) {
-            sidebar.classList.remove('active');
-            hamburger.classList.remove('active');
+<style>
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
         }
     }
-
-    function handleUpload(e) {
-        e.preventDefault();
-        window.location.href = '/upload';
-    }
-
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger');
-        sidebar.classList.toggle('active');
-        hamburger.classList.toggle('active');
-    }
-
-    document.addEventListener('click', function(event) {
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger');
-        if (!sidebar.contains(event.target) && !hamburger.contains(event.target)) {
-            if (sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-                hamburger.classList.remove('active');
-            }
-        }
-    });
-
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href !== '#') {
-                e.preventDefault();
-                const target = document.querySelector(href);
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
-            }
-        });
-    });
-
-    const sections = document.querySelectorAll('section[id]');
-    const navLinks = document.querySelectorAll('.nav-link');
-
-    window.addEventListener('scroll', () => {
-        let current = '';
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop;
-            if (scrollY >= sectionTop - 200) {
-                current = section.getAttribute('id');
-            }
-        });
-
-        navLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${current}`) {
-                link.classList.add('active');
-            }
-        });
-    });
-</script>
+</style>
 
 </body>
 </html>

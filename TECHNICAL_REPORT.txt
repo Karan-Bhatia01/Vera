@@ -1,0 +1,1140 @@
+================================================================================
+                        VERA ML PLATFORM
+                    COMPREHENSIVE TECHNICAL REPORT
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+
+Vera is a sophisticated AI-powered data analysis platform that bridges the gap
+between data science and practical data interpretation. The platform combines
+automated statistical analysis with Large Language Model (LLM) reasoning to
+provide enterprise-grade data insights.
+
+CORE PHILOSOPHY: "Python does the math. AI does the thinking."
+
+The system leverages Python's scientific libraries (NumPy, Pandas, Scikit-Learn)
+for accurate computations and uses OpenAI-compatible APIs (OXLO) for contextual
+reasoning and human-interpreted insights.
+
+
+ARCHITECTURE OVERVIEW
+================================================================================
+
+1. TECHNOLOGY STACK
+   ─────────────────
+
+   Backend:
+   ├── Flask (Web framework) - Lightweight, flexible routing
+   ├── Python 3.8+ - Scientific computing
+   ├── MongoDB - Document database with GridFS for file storage
+   └── OpenAI SDK - LLM API integration
+
+   Frontend:
+   ├── HTML5 - Semantic markup
+   ├── CSS3 - Design system with CSS variables
+   ├── Vanilla JavaScript - Interactive functionality
+   └── Jinja2 - Server-side templating
+
+   Data Science:
+   ├── Pandas - Data manipulation
+   ├── NumPy - Numerical computations
+   ├── Scikit-Learn - ML models and preprocessing
+   ├── XGBoost/LightGBM - Advanced model implementations (optional)
+   ├── Matplotlib/Seaborn - Visualization generation
+   └── Scikit-Optimize - Hyperparameter tuning
+
+   DevOps & Utilities:
+   ├── GridFS - Binary file storage in MongoDB
+   ├── python-dotenv - Environment configuration
+   └── Logging - Custom logging with timestamps
+
+
+2. SYSTEM ARCHITECTURE DIAGRAM
+   ────────────────────────────
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                         CLIENT LAYER                            │
+   │  ┌──────────────┬──────────────┬──────────────┬───────────────┐ │
+   │  │   Landing    │   Upload     │  EDA Page    │  ML Results   │ │
+   │  │   Page       │   Page       │   Page       │   Page        │ │
+   │  └──────────────┴──────────────┴──────────────┴───────────────┘ │
+   │         ↓                ↓              ↓              ↓          │
+   │  ┌────────────────────────────────────────────────────────────┐ │
+   │  │              Navbar (Global Navigation)                     │ │
+   │  │  Health Check Status  │  Navigation Links                  │ │
+   │  └────────────────────────────────────────────────────────────┘ │
+   └─────────────────────────────────────────────────────────────────┘
+                           ↓ HTTP/JSON
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                      FLASK BACKEND (app.py)                     │
+   │                                                                   │
+   │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
+   │  │  upload      │  │  info_layer  │  │  preprocessing      │  │
+   │  │  /upload     │  │  /info       │  │  /preprocessing     │  │
+   │  └──────────────┘  └──────────────┘  └─────────────────────┘  │
+   │         ↓                 ↓                     ↓                │
+   │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
+   │  │  ml_pipeline │  │ analyse_chart│  │   api_health        │  │
+   │  │  /ml         │  │ /analyse_chart      │   /api/health   │  │
+   │  └──────────────┘  └──────────────┘  └─────────────────────┘  │
+   └─────────────────────────────────────────────────────────────────┘
+                           ↓ (Async calls & data)
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                   BUSINESS LOGIC LAYER                          │
+   │                                                                   │
+   │  ┌─────────────────────────────────────────────────────────┐   │
+   │  │  Data Ingestion & Preprocessing                         │   │
+   │  │  ├── DataIngestion (CSV upload, parsing)               │   │
+   │  │  ├── DataPreprocessing (EDA, cleaning, statistics)     │   │
+   │  │  └── DataInfo (Descriptive analysis)                   │   │
+   │  └─────────────────────────────────────────────────────────┘   │
+   │  ┌─────────────────────────────────────────────────────────┐   │
+   │  │  AI/LLM Integration                                     │   │
+   │  │  ├── AnalysisExplainer (Dataset insights via OXLO)     │   │
+   │  │  ├── ML Pipeline (Feature engineering via LLM)         │   │
+   │  │  └── Chart Analysis (Vision-based chart insights)      │   │
+   │  └─────────────────────────────────────────────────────────┘   │
+   │  ┌─────────────────────────────────────────────────────────┐   │
+   │  │  Machine Learning                                       │   │
+   │  │  ├── Feature engineering & preprocessing                │   │
+   │  │  ├── Multi-model training (Regression & Classification)│   │
+   │  │  ├── Cross-validation & hyperparameter tuning          │   │
+   │  │  └── Model evaluation & selection                      │   │
+   │  └─────────────────────────────────────────────────────────┘   │
+   └─────────────────────────────────────────────────────────────────┘
+                           ↓ (Read/Write)
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                    DATA & STORAGE LAYER                         │
+   │                                                                   │
+   │  ┌──────────────────┐         ┌──────────────────┐             │
+   │  │    MongoDB       │         │   GridFS        │             │
+   │  │  (Collections)   │         │  (Binary)       │             │
+   │  │  ├── dataset     │         ├── CSV files     │             │
+   │  │  │  _insights    │         ├── Models (.pkl) │             │
+   │  │  ├── ml_results  │         └── (Auto)        │             │
+   │  │  ├── chart_      │                           │             │
+   │  │  │  insights     │         Retrieval:        │             │
+   │  │  └── fs.files    │         - By filename     │             │
+   │  │     fs.chunks    │         - By upload date  │             │
+   │  │                  │         - By ObjectID     │             │
+   │  └──────────────────┘         └──────────────────┘             │
+   └─────────────────────────────────────────────────────────────────┘
+
+
+3. DATA FLOW ARCHITECTURE
+   ──────────────────────
+
+   STEP 1: DATA UPLOAD
+   ──────────────────
+   User uploads CSV → Flask receives file → DataIngestion validates format →
+   → Stores in MongoDB GridFS with metadata → Returns list of all files
+   
+   Storage: MongoDB GridFS with automatic filename indexing
+   Output: Preview (first 5 rows) + Column names
+
+   
+   STEP 2: DATASET ANALYSIS
+   ───────────────────────
+   User clicks "Dataset Info" → Flask loads CSV from GridFS →
+   → AnalysisExplainer computes statistics (100% Pandas-based) →
+   → LLM receives statistics + null values + unique counts →
+   → LLM generates structured insights (JSON) →
+   → Insights stored in MongoDB dataset_insights collection
+   
+   Metrics computed: shape, dtypes, null counts, duplicate rows,
+                     numeric stats (mean/std/min/max), unique values,
+                     memory usage, data types, column-by-column analysis
+
+
+   STEP 3: PREPROCESSING & EDA
+   ───────────────────────────
+   User configures preprocessing → Flask calls DataPreprocessing →
+   → Applies: duplicates removal, column dropping, missing value strategies →
+   → Generates 25+ EDA charts (histograms, distributions, correlations) →
+   → Charts converted to base64 PNG and sent to frontend
+   
+   On-demand: User clicks "AI Insights" on chart → Frontend sends base64 +
+   title → Backend calls OXLO vision API → Returns JSON analysis →
+   → Chart insights stored in MongoDB → Frontend displays
+
+
+   STEP 4: MACHINE LEARNING
+   ────────────────────────
+   User selects target column → Flask calls MLPipeline →
+   → LLM decides feature engineering (drop/ordinal/onehot/numeric) →
+   → Auto-detects problem type (classification vs regression) →
+   → Trains 10+ model families (LR, DT, RF, GB, SVM, KNN, NB, XGB, etc.) →
+   → Performs cross-validation & hyperparameter tuning →
+   → Selects best model based on evaluation metric →
+   → Saves all models (.pkl) to GridFS + metrics to MongoDB →
+   → Returns full results page with confusion matrix, feature importance, etc.
+
+
+COMPONENT ARCHITECTURE
+================================================================================
+
+1. FRONTEND COMPONENTS (Flask Templates)
+   ─────────────────────────────────────
+
+   templates/
+   ├── partials/navbar.html
+   │   └── Global navigation with MongoDB health check status pill
+   │       Polls /api/health every 10 seconds
+   │       Shows: ● Connected (green) or ● Offline (red)
+   │       Navigation: Upload, Datasets, AI Tools
+   │
+   ├── vera_landing.html
+   │   └── Landing page with hero section
+   │       Features section showcasing platform benefits
+   │       CTA buttons for getting started
+   │       Gradient animations and smooth transitions
+   │
+   ├── index.html (Upload Page)
+   │   └── File upload form with drag-and-drop
+   │       Dataset list with quick action buttons
+   │       Data preview table (first 5 rows)
+   │       Responsive layout for mobile
+   │
+   ├── info.html (Dataset Analysis)
+   │   └── Dataset statistics and AI insights
+   │       Stat cards: Shape, null counts, unique values
+   │       AI-generated summary of dataset quality
+   │       Column-by-column analysis with quality flags
+   │
+   ├── eda_processing.html (Preprocessing Config)
+   │   └── Target column selection
+   │       Columns to drop (checkboxes)
+   │       Missing value strategy per column
+   │       AI recommendations for preprocessing
+   │
+   ├── preprocessing_result.html (EDA Results)
+   │   └── Cleaned data preview table
+   │       25 EDA charts in responsive grid
+   │       "AI Insights" button for each chart (vision-based)
+   │       Analysis panels showing findings, anomalies, recommendations
+   │
+   ├── ml_input.html (ML Configuration)
+   │   └── Simple form: select target column
+   │       Submit to start ML pipeline
+   │
+   └── ml_results.html (ML Results)
+       └── Best model summary with evaluation metric
+           Model comparison table (all trained models)
+           Confusion matrix (classification) or residuals (regression)
+           Feature importance chart
+           Model download buttons
+           Training time and resource stats
+
+
+2. BACKEND COMPONENTS (Python Modules)
+   ────────────────────────────────────
+
+   app.py (Flask Application)
+   ├── Routes: 10 primary endpoints
+   ├── Logic: Orchestrates all backend services
+   ├── Responsibilities: Request handling, response formatting
+   └── Error handling with custom exceptions
+
+   src/components/
+   ├── data_ingestion.py
+   │   ├── DataIngestion class
+   │   ├── Methods:
+   │   │   ├── store_file() - Stores CSV in GridFS
+   │   │   ├── get_preview() - Returns first 5 rows
+   │   │   ├── get_all_filenames() - Lists all CSV files
+   │   │   └── _read_csv_robust() - Handles encoding/sep issues
+   │   └── Supports: UTF-8, Latin1, UTF-8-sig, CP1252 encodings
+   │                Separators: comma, semicolon, tab, pipe
+   │
+   ├── data_info.py
+   │   ├── DataInfo class
+   │   ├── Computes: descriptive statistics, null analysis
+   │   ├── Detection: numeric vs categorical columns
+   │   └── Output: Statistics dict for AI interpretation
+   │
+   ├── eda_processing.py
+   │   ├── DataPreprocessing class
+   │   ├── Features:
+   │   │   ├── get_ai_insights() - LLM-guided missing value strategy
+   │   │   ├── preprocess_data() - Applies cleaning transformations
+   │   │   └── generate_eda_report() - Creates 25+ charts
+   │   ├── Chart types: histogram, distribution, correlation, etc.
+   │   └── Chart format: Base64-encoded PNG for web delivery
+   │
+   ├── ml_pipeline.py
+   │   ├── MLPipeline class
+   │   ├── Workflow:
+   │   │   ├── llm_feature_plan() - Get feature engineering decisions
+   │   │   ├── auto_detect_problem() - Classification vs regression
+   │   │   ├── train_all_models() - Trains 10+ model families
+   │   │   ├── hyperparameter_tune() - Uses GridSearchCV
+   │   │   ├── select_best_model() - Based on validation metric
+   │   │   └── save_results() - Persists to MongoDB
+   │   ├── Models trained:
+   │   │   Classification: LogisticRegression, DecisionTree, RandomForest,
+   │   │                   GradientBoosting, SVM, KNN, NaiveBayes, XGBoost, LightGBM
+   │   │   Regression: LinearRegression, Ridge, Lasso, DecisionTree,
+   │   │              RandomForest, GradientBoosting, SVM, KNN, XGBoost, LightGBM
+   │   └── Metrics: Accuracy, F1, Precision, Recall (classification)
+   │                R², MSE, MAE (regression)
+   │
+   ├── mongo_storage.py
+   │   ├── Database functions (collections: dataset_insights, ml_results)
+   │   ├── store_dataset_insights() - Save analysis after /info
+   │   ├── store_chart_insight() - Save chart-specific analysis
+   │   ├── get_dataset_insights() - Retrieve stored insights
+   │   └── list_stored_datasets() - Get all analyzed datasets
+   │
+   ├── notebook_exporter.py
+   │   ├── Converts analysis results to Jupyter notebooks
+   │   ├── Auto-generates code reproducing the pipeline
+   │   └── Embeds charts and insights
+   │
+   ├── rag_pipeline.py
+   │   ├── Semantic search over stored insights
+   │   ├── Vector embeddings for similarity search
+   │   └── Context retrieval for multi-document analysis
+   │
+   └── __init__.py
+       └── Package initialization
+
+
+   src/agenticLayer/
+   ├── llm.py
+   │   ├── AnalysisExplainer class
+   │   ├── Responsibilities:
+   │   │   ├── Load DataFrame from MongoDB
+   │   │   ├── Compute statistics (100% Pandas)
+   │   │   ├── Send to OXLO LLM for reasoning
+   │   │   ├── Parse JSON response
+   │   │   └── Return structured insights
+   │   └── Output format: {summary, quality_flags, column_insights, next_steps}
+   │
+   ├── Feature: Rate-limiting with exponential backoff
+   ├── Fallback: Returns empty analysis if LLM fails
+   └── Integration: OpenAI SDK compatible with OXLO API
+
+
+   src/
+   ├── utils.py
+   │   ├── GridFS utilities
+   │   │   ├── get_gridfs_connection()
+   │   │   ├── fetch_csv_from_gridfs()
+   │   │   └── load_dataframe_from_mongo()
+   │   ├── LLM utilities
+   │   │   ├── llm_agent() - Send structured prompts to LLM
+   │   │   ├── analyse_chart() - Vision-based chart analysis
+   │   │   └── parse_json_response() - Robust JSON extraction
+   │   ├── Image utilities
+   │   │   ├── fig_to_b64() - Matplotlib figure to base64
+   │   │   └── empty_analysis() - Fallback response
+   │   └── Supports: Retry logic, timeout handling, graceful degradation
+   │
+   ├── logger.py
+   │   ├── Custom logging configuration
+   │   ├── Log file: logs/[timestamp].log
+   │   ├── Format: [timestamp] line_number module - level - message
+   │   └── Level: INFO by default
+   │
+   ├── exception.py
+   │   ├── CustomException class
+   │   ├── Captures: file name, line number, error message
+   │   ├── Format: Error occurred in [file] line [line] error [msg]
+   │   └── Used throughout for consistent error handling
+   │
+   └── api_routes.py
+       └── (Reserved for API-specific extensions)
+
+
+3. DESIGN SYSTEM (CSS)
+   ────────────────────
+
+   static/css/
+   ├── design-system.css
+   │   ├── Design tokens (all CSS variables)
+   │   ├── Typography: Inter font, 9-level size scale (11px-48px)
+   │   ├── Colors: Dark theme with 5 accent colors
+   │   ├── Spacing: 10-level scale (4px-64px, 4px increments)
+   │   ├── Border radius: 5 sizes (6px-9999px)
+   │   ├── Shadows: 4 levels + glow effect
+   │   ├── Transitions: 3 speed variants (fast/normal/slow)
+   │   └── Global styles: Typography, selection, scrollbar
+   │
+   ├── layout.css
+   │   ├── Page structure (navbar padding offset)
+   │   ├── Container: max-width 1200px, centered
+   │   ├── Grid systems: card-grid, chart-grid, results-grid
+   │   ├── Responsive: 768px mobile breakpoint
+   │   └── Section styling: borders, backgrounds, spacing
+   │
+   ├── components.css
+   │   ├── Buttons: .btn, .btn-primary, .btn-secondary variants
+   │   ├── Forms: inputs, selects, checkboxes with focus states
+   │   ├── Badges: 4+ color variants
+   │   ├── Cards: hover effects, borders, shadows
+   │   ├── Tables: thead/tbody styling, responsive
+   │   ├── Upload zone: drag-drop visual feedback
+   │   ├── Charts: grid layout, aspect ratios
+   │   └── All use CSS variables (no hardcoded colors)
+   │
+   ├── vera_landing.css
+   │   ├── Hero section: animated gradient background
+   │   ├── Feature cards: 3-column grid, hover transforms
+   │   ├── CTA section: rich styling
+   │   └── Animations: slideInUp, slideInFade, gradientShift
+   │
+   ├── chatbot.css
+   │   ├── Widget styling
+   │   ├── Message bubbles: user (right) vs assistant (left)
+   │   └── Input area: responsive
+   │
+   ├── Additional pages:
+   │   ├── info.css - Dataset info page
+   │   ├── eda.css - EDA page styling
+   │   ├── ml.css - ML results page
+   │   └── preprocessing_result.css - Preprocessing page
+   │
+   └── modern-ui.js
+       ├── Interactive elements
+       ├── Form validation
+       └── UI enhancements
+
+
+AI/LLM INTEGRATION
+================================================================================
+
+1. OXLO API INTEGRATION
+   ─────────────────────
+
+   Provider: OXLO (OpenAI-compatible API)
+   Models available:
+   ├── llama-3.2-3b (For dataset analysis & feature planning)
+   ├── mistral-7b (For chart vision analysis)
+   └── Support for multimodal inputs (text + vision)
+
+   Configuration:
+   ├── Environment variable: OXLO_API_KEY
+   ├── Base URL: https://api.oxlo.ai/v1
+   ├── Auth: Bearer token in API key
+   └── Timeout: 90 seconds per request
+
+   Integration points:
+   ├── /info route - LLM analyzes dataset statistics
+   ├── /preprocessing route - LLM suggests missing value strategies
+   ├── /ml route - LLM decides feature engineering approach
+   └── /analyse_chart route - LLM analyzes chart images
+
+
+2. PROMPT ENGINEERING
+   ───────────────────
+
+   Dataset Analysis Prompt:
+   - INPUT: DataFrame statistics (shape, dtypes, nulls, unique counts)
+   - OUTPUT: {summary, quality_flags, column_insights, next_steps}
+   - The prompt is structured to ensure JSON-only responses (no preamble)
+   - Includes uncertainty notation when confidence is low
+
+   Feature Engineering Prompt:
+   - INPUT: Column names + cardinality + target variable
+   - OUTPUT: {drop: [], ordinal: {}, onehot: [], numeric: []}
+   - Rules: never include target, drop high-cardinality, etc.
+   - Helps ML pipeline make intelligent preprocessing decisions
+
+   Chart Analysis Prompt:
+   - INPUT: Base64 PNG image + chart title
+   - OUTPUT: {represents, key_findings[], anomalies[], recommendations[]}
+   - Uses vision capabilities to interpret chart patterns
+   - Provides actionable recommendations based on chart data
+
+
+3. ERROR HANDLING & FALLBACKS
+   ─────────────────────────────
+
+   API Failures:
+   ├── 429 (Rate limit): Exponential backoff (1s, 2s, 4s, 8s max)
+   ├── 401 (Auth error): Returns user-facing error message
+   ├── Timeout: Returns empty analysis placeholder
+   └── Network error: Gracefully degrades to empty response
+
+   JSON Parsing:
+   ├── Invalid JSON: Attempts markdown fence removal
+   ├── Partial response: Uses regex to extract valid JSON substring
+   ├── Complete failure: Returns empty placeholder (no error propagation)
+   └── Logged for debugging but doesn't crash system
+
+   User Experience:
+   ├── Failed analysis shows: "Analysis unavailable - ensure OXLO_API_KEY is configured"
+   ├── Includes retry button for on-demand re-analysis
+   ├── Platform continues functioning without LLM
+
+
+DATABASE ARCHITECTURE
+================================================================================
+
+1. MONGODB SCHEMA
+   ───────────────
+
+   Collection: fs.files (GridFS metadata)
+   ├── _id: ObjectId (auto)
+   ├── filename: String (e.g., "Churn_Modelling.csv")
+   ├── uploadDate: DateTime (automatic)
+   ├── content_type: String (e.g., "text/csv")
+   └── length: Integer (file size in bytes)
+
+   Collection: fs.chunks (GridFS data)
+   ├── _id: ObjectId (auto)
+   ├── files_id: ObjectId (reference to fs.files)
+   ├── n: Integer (chunk sequence number)
+   └── data: BinData (binary content)
+
+   Collection: dataset_insights
+   ├── _id: ObjectId (auto)
+   ├── filename: String (unique, identifies dataset)
+   ├── stored_at: DateTime (when analysis was performed)
+   ├── analysis: Object
+   │   ├── shape: [rows, columns]
+   │   ├── columns: [column names]
+   │   ├── dtypes: {column: dtype}
+   │   ├── null_values: {column: count}
+   │   ├── null_percentages: {column: percentage}
+   │   ├── duplicate_rows: Integer
+   │   ├── numeric_columns: [names]
+   │   ├── categorical_columns: [names]
+   │   ├── describe: {column: {mean, std, min, 25%, 50%, 75%, max}}
+   │   ├── memory_usage_mb: Float
+   │   ├── unique_counts: {column: count}
+   │   └── sample_rows: [preview data]
+   ├── ai_insights: Object
+   │   ├── summary: String (overall dataset assessment)
+   │   ├── quality_flags: [issues found]
+   │   ├── column_insights: {column: analysis}
+   │   └── next_steps: [recommended actions]
+   ├── unique: {column: [unique values sample]}
+   └── chart_insights: {chart_title: {represents, key_findings, anomalies, recommendations}}
+
+   Collection: ml_results
+   ├── _id: ObjectId (auto)
+   ├── filename: String
+   ├── target_column: String
+   ├── created_at: DateTime
+   ├── problem_type: String ("classification" or "regression")
+   ├── feature_plan: Object (LLM's feature engineering decisions)
+   ├── best_model: String (model name)
+   ├── best_metric: String (metric name)
+   ├── rank_metric: Float (best metric value)
+   ├── results: Object
+   │   ├── LogisticRegression: {accuracy, f1, precision, recall, auc}
+   │   ├── RandomForest: {...}
+   │   ├── XGBoost: {...}
+   │   └── ... (for all trained models)
+   ├── confusion_matrix: Array (for classification)
+   ├── feature_importance: {feature: importance_score}
+   ├── model_gridfs_ids: {model_name: gridfs_id}
+   └── training_time_seconds: Float
+
+
+2. DATA PERSISTENCE STRATEGY
+   ──────────────────────────
+
+   CSV File Storage:
+   ├── Location: MongoDB GridFS
+   ├── Indexing: By filename (unique)
+   ├── Retrieval: Latest by uploadDate
+   └── Retrieval: By specific filename
+
+   Model Storage:
+   ├── Format: Pickle (.pkl) binary
+   ├── Location: MongoDB GridFS
+   ├── Referenced by: ml_results.model_gridfs_ids
+   └── Download: Via /download_model endpoint
+
+   Analysis Caching:
+   ├── Dataset insights cached in dataset_insights collection
+   ├── Updates: Latest analysis overwrites previous
+   ├── TTL: No automatic expiration (manual cleanup possible)
+   └── Retrieval: Via /api/insights/<filename>
+
+
+FRONTEND DESIGN SYSTEM
+================================================================================
+
+1. DESIGN PHILOSOPHY
+   ──────────────────
+
+   Theme: Modern dark interface with vibrant accents
+   ├── Primary background: #0a0a0f (near black)
+   ├── Accent primary: #4f46e5 (indigo, for CTAs)
+   ├── Accent secondary: #10b981 (green, for success)
+   ├── Accent warning: #f59e0b (amber, for caution)
+   ├── Accent destructive: #ef4444 (red, for danger)
+   └── Text primary: #f0f0fa (off-white for contrast)
+
+   Typography:
+   ├── Font family: Inter (modern, geometric)
+   ├── Scale: 11px to 48px (9 levels)
+   ├── Weights: 400, 500, 600, 700, 800
+   └── Special: Line height and letter spacing standardized
+
+   Spacing:
+   ├── System: 4px base unit increments
+   ├── Scale: 1-16 (4px, 8px, 12px... 64px)
+   ├── Consistency: Used everywhere for visual harmony
+   └── Variables: All defined in design-system.css
+
+   Components:
+   ├── Buttons: Primary, secondary, ghost with size variants
+   ├── Forms: Consistent height (40px), focus states
+   ├── Cards: Elevation, borders, hover transforms
+   ├── Icons: Emoji-based for simplicity
+   └── Animations: Smooth transitions, fade-in effects
+
+   Responsive:
+   ├── Mobile breakpoint: 768px
+   ├── Layout: Grids collapse to single column
+   ├── Navigation: Hamburger menu on mobile
+   └── Touch-friendly: Buttons ≥44px tap target
+
+
+2. DESIGN TOKENS REFERENCE
+   ────────────────────────
+
+   Colors:
+   --bg-primary:         #0a0a0f     (main background)
+   --bg-secondary:       #111118     (cards, sections)
+   --bg-tertiary:        #1a1a24     (nested elements)
+   --fg-primary:         #f0f0fa     (main text)
+   --fg-secondary:       #a0a0b8     (secondary text)
+   --fg-muted:           #60607a     (muted text)
+   --accent-primary:     #4f46e5     (main brand)
+   --accent-secondary:   #10b981     (success)
+   --accent-warning:     #f59e0b     (warning)
+   --accent-destructive: #ef4444     (error)
+   --border-default:     #252535     (borders)
+
+   Spacing:
+   --space-1:  4px       --space-8:  32px
+   --space-2:  8px       --space-10: 40px
+   --space-3:  12px      --space-12: 48px
+   --space-4:  16px      --space-16: 64px
+   --space-5:  20px
+   --space-6:  24px
+
+   Radius:
+   --radius-sm:   6px        (slightly rounded)
+   --radius-md:   10px       (standard)
+   --radius-lg:   16px       (large buttons)
+   --radius-xl:   24px       (modals)
+   --radius-full: 9999px     (pills)
+
+   Typography:
+   --font-size-xs:  11px     --font-size-2xl: 24px
+   --font-size-sm:  12px     --font-size-3xl: 32px
+   --font-size-base: 13px    --font-size-4xl: 48px
+   --font-size-md:  14px
+   --font-size-lg:  16px
+   --font-size-xl:  18px
+
+   Shadows:
+   --shadow-sm:   0 1px 3px rgba(0,0,0,0.4)
+   --shadow-md:   0 4px 16px rgba(0,0,0,0.4)
+   --shadow-lg:   0 8px 32px rgba(0,0,0,0.5)
+   --shadow-glow: 0 0 24px rgba(79,70,229,0.25)
+
+   Animations:
+   --transition-fast:   150ms ease-out
+   --transition-normal: 200ms ease-out
+   --transition-slow:   300ms ease-out
+
+
+DATA FLOW EXAMPLES
+================================================================================
+
+1. COMPLETE WORKFLOW: CSV UPLOAD TO ML RESULTS
+   ──────────────────────────────────────────
+
+   1.1 FILE UPLOAD
+       └─ POST /upload with CSV file
+          ├─ Flask receives file
+          ├─ DataIngestion validates format (charset, separator)
+          ├─ GridFS stores with filename index
+          └─ Redirect to /upload?filename=XXX
+
+   1.2 DATASET PREVIEW
+       └─ GET /upload?filename=Churn_Modelling.csv
+          ├─ Flask loads file list
+          ├─ Shows selected file preview (first 5 rows)
+          └─ User clicks "Dataset Info"
+
+   1.3 ANALYSIS GENERATION
+       └─ GET /info?filename=Churn_Modelling.csv
+          ├─ AnalysisExplainer loads DataFrame from GridFS
+          ├─ compute_analysis() calculates statistics (100% Pandas)
+          ├─ Sends structured JSON to OXLO API with statistics
+          ├─ Receives back: {summary, quality_flags, column_insights}
+          ├─ store_dataset_insights() saves to MongoDB
+          └─ Template renders with all insights
+
+   1.4 PREPROCESSING CONFIGURATION
+       └─ GET /preprocessing?filename=Churn_Modelling.csv
+          ├─ DataPreprocessing loads DataFrame
+          ├─ get_ai_insights() calls LLM for missing value strategies
+          ├─ Template shows form with LLM recommendations
+          └─ User submits form with selections
+
+   1.5 EDA EXECUTION & VISUALIZATION
+       └─ POST /preprocessing (form data)
+          ├─ DataPreprocessing applies transformations:
+          │  ├─ Remove duplicates
+          │  ├─ Drop selected columns
+          │  └─ Handle missing values per strategy
+          ├─ generate_eda_report() creates 25 charts:
+          │  ├─ Each chart rendered with Matplotlib
+          │  ├─ Each chart converted to base64 PNG
+          │  └─ All sent to template as {title: base64}
+          ├─ Template displays charts in responsive grid
+          └─ User clicks "AI Insights" on any chart
+
+   1.6 ON-DEMAND CHART ANALYSIS
+       └─ POST /analyse_chart
+          ├─ JavaScript sends: {image_b64, chart_title, filename}
+          ├─ analyse_chart() calls OXLO vision API
+          ├─ Returns: {represents, key_findings[], anomalies[], recommendations[]}
+          ├─ store_chart_insight() saves to MongoDB
+          ├─ JavaScript displays analysis panel
+          └─ User can retry different charts
+
+   1.7 ML PIPELINE CONFIGURATION
+       └─ GET /ml?filename=Churn_Modelling.csv
+          ├─ Flask loads column list from cleaned DataFrame
+          ├─ Template shows target column dropdown
+          └─ User selects target and submits
+
+   1.8 ML PIPELINE EXECUTION
+       └─ POST /ml (form: target_column)
+          ├─ MLPipeline.llm_feature_plan() asks LLM:
+          │  └─ What columns to drop/ordinal/onehot/numeric
+          ├─ auto_detect_problem() determines classification vs regression
+          ├─ Applies preprocessing transformer:
+          │  ├─ StandardScaler for numeric features
+          │  ├─ OrdinalEncoder for ordinal features
+          │  └─ OneHotEncoder for categorical features
+          ├─ train_all_models() trains 10+ model families:
+          │  ├─ Each with cross-validation (5-fold)
+          │  ├─ Each with hyperparameter tuning
+          │  └─ Each evaluated on validation metrics
+          ├── select_best_model() picks winner based on metric
+          ├── save_results() to MongoDB:
+          │   ├─ All model metrics
+          │   ├─ Confusion matrix / residuals
+          │   ├─ Feature importance
+          │   └─ Pickled models to GridFS
+          └─ Template renders results page
+
+   1.9 MODEL DOWNLOAD
+       └─ GET /download_model?doc_id=XXX&model_name=RandomForest
+          ├─ Retrieves model ObjectID from MongoDB
+          ├─ Gets pickle bytes from GridFS
+          ├─ Sends as file download
+          └─ User has trained model for local use
+
+
+2. AI INSIGHTS FLOW
+   ────────────────
+
+   Trigger: User views dataset at /info
+
+   Data Preparation:
+   ├─ Load DataFrame from GridFS
+   ├─ Compute statistics (all pandas operations)
+   ├─ Group data by metric type
+   └─ Serialize to JSON for LLM
+
+   LLM Reasoning:
+   ├─ Prompt: "Analyze this dataset. What's the overall quality?"
+   ├─ Context passed: shape, column types, null counts, unique values
+   ├─ LLM responds with JSON: {summary, quality_flags, column_insights}
+   └─ Response parsed and validated for required fields
+
+   Storage:
+   ├─ Save in dataset_insights collection
+   ├─ Include timestamp
+   └─ Link to original filename
+
+   Presentation:
+   ├─ Template displays formatted AI insights
+   ├─ Highlights quality flags with warnings
+   ├─ Shows next steps as actionable items
+   └─ Links to preprocessing if issues found
+
+
+CONFIGURATION & DEPLOYMENT
+================================================================================
+
+1. ENVIRONMENT VARIABLES (.env)
+   ───────────────────────────
+
+   Required:
+   ├─ OXLO_API_KEY=sk_live_xxxxxxxx (OXLO platform API key)
+   ├─ SECRET_KEY=your-secret-key (Flask session encryption)
+   └─ (MongoDB defaults to localhost:27017)
+
+   Optional:
+   ├─ MONGODB_URI=mongodb://localhost:27017/
+   ├─ MONGODB_DB=clarityAI_database
+   └─ (Use defaults if not specified)
+
+
+2. DEPENDENCIES (requirements.txt)
+   ──────────────────────────────
+
+   Core:
+   ├─ numpy (numerical operations)
+   ├─ pandas (data manipulation)
+   ├─ Flask (web framework)
+   ├─ pymongo (MongoDB driver)
+   └─ scikit-learn (ML models)
+
+   Visualization:
+   ├─ matplotlib (chart generation)
+   └─ seaborn (statistical plots)
+
+   AI/LLM:
+   ├─ openai (SDK for OXLO API)
+   └─ python-dotenv (environment loading)
+
+   Optional (performance):
+   ├─ xgboost (advanced boosting)
+   └─ lightgbm (advanced boosting)
+
+
+3. LOGGING SYSTEM
+   ───────────────
+
+   Log file: logs/[MM_DD_YYYY_HH_MM_SS].log
+   Format: [timestamp] lineno module - levelname - message
+
+   Example:
+   [ 2026-04-04 15:00:31,443 ] 17 root - INFO - MongoDB GridFS connection established
+   [ 2026-04-04 15:01:09,417 ] 229 root - INFO - Oxlo analysis received.
+   [ 2026-04-04 15:01:09,440 ] 95 root - INFO - Chart insight stored.
+
+   Captured logs:
+   ├─ Startup events (MongoDB connection)
+   ├─ File operations (upload, storage, retrieval)
+   ├─ API calls (OXLO requests/responses)
+   ├─ ML pipeline progress
+   ├─ Database operations
+   └─ Errors (with stack traces)
+
+
+KEY CONCEPTS & TECHNIQUES
+================================================================================
+
+1. DESIGN PATTERNS
+   ────────────────
+
+   MVC Architecture:
+   ├─ Models: DataFrames, database documents
+   ├─ Views: Jinja2 templates + CSS
+   └─ Controllers: Flask routes + business logic classes
+
+   Strategy Pattern:
+   ├─ Missing value strategies (drop, mean, median, forward-fill)
+   ├─ Feature encoding strategies (ordinal, onehot, numeric)
+   └─ Model selection strategies (best metric, cross-validation)
+
+   Factory Pattern:
+   ├─ Model training creates different model instances
+   ├─ Preprocessing pipelines are built dynamically
+   └─ Chart generation factory creates appropriate plots
+
+   Adapter Pattern:
+   ├─ OpenAI SDK adapted to work with OXLO API
+   ├─ MongoDB GridFS adapter for file storage
+   └─ Pandas DataFrames adapted to web responses
+
+
+2. TECHNICAL CONCEPTS USED
+   ────────────────────────
+
+   Statistical Analysis:
+   ├─ Descriptive statistics (mean, std, quartiles)
+   ├─ Correlation analysis (Pearson, between columns)
+   ├─ Null value analysis (counts, percentages)
+   ├─ Unique value analysis (cardinality)
+   └─ Outlier detection (IQR method)
+
+   Machine Learning:
+   ├─ Classification (binary/multiclass)
+   ├─ Regression (continuous target)
+   ├─ Feature encoding:
+   │  ├─ StandardScaler (numeric normalization)
+   │  ├─ OrdinalEncoder (ordered categories)
+   │  └─ OneHotEncoder (categorical)
+   ├─ Cross-validation (k-fold, stratified)
+   ├─ Hyperparameter tuning (GridSearchCV)
+   ├─ Ensemble methods (voting, stacking)
+   └─ Evaluation metrics (accuracy, F1, R², MSE)
+
+   Database Concepts:
+   ├─ Document database design (flexible schema)
+   ├─ GridFS (large file storage in MongoDB)
+   ├─ Indexing (efficient retrieval)
+   ├─ Transactions (transactional safety)
+   └─ Aggregation (complex queries)
+
+   Web Concepts:
+   ├─ REST API (HTTP methods, status codes)
+   ├─ Session management (Flask sessions)
+   ├─ CORS handling (cross-origin requests)
+   ├─ File uploads (multipart/form-data)
+   ├─ JSON serialization (Python ↔ JavaScript)
+   └─ Base64 encoding (binary → text for web)
+
+   LLM Integration:
+   ├─ Prompt engineering (structure, role-playing)
+   ├─ JSON mode (ensuring structured outputs)
+   ├─ Vision API (image understanding)
+   ├─ Rate limiting (error handling, retry logic)
+   └─ Token optimization (payload reduction)
+
+
+3. ERROR HANDLING PHILOSOPHY
+   ──────────────────────────
+
+   Graceful Degradation:
+   ├─ If LLM unavailable: Return empty insights, don't crash
+   ├─ If chart analysis fails: Show retry button, platform still works
+   ├─ If GridFS fails: User sees clear error, can re-upload
+   └─ If model training fails: Return partial results, show error
+
+   Logging Strategy:
+   ├─ All operations logged (INFO level)
+   ├─ All errors logged with context
+   ├─ Stack traces captured in exception module
+   ├─ No silent failures
+   └─ Easy debugging via logs
+
+   User Communication:
+   ├─ Clear error messages (not technical jargon)
+   ├─ Actionable next steps (e.g., "ensure OXLO_API_KEY is set")
+   ├─ Loading states (button text changes during processing)
+   ├─ Success indicators (button changes to "✦ Analysed")
+   └─ Retry mechanisms (buttons re-enable for retry)
+
+
+API ENDPOINTS REFERENCE
+================================================================================
+
+Route: GET /
+Purpose: Landing page
+Response: HTML (vera_landing.html)
+
+Route: GET/POST /upload
+Purpose: File upload & management
+Methods:
+  GET: Show upload form + file list + preview
+  POST: Handle file upload
+Response: HTML (index.html) or redirect
+
+Route: GET /info?filename=XXX
+Purpose: Dataset analysis with AI insights
+Response: HTML (info.html) with analysis, ai_insights, etc.
+
+Route: GET /api/stored_datasets
+Purpose: List all analyzed datasets
+Response: JSON {datasets: [{filename, stored_at, shape, summary}]}
+
+Route: GET /api/insights/<filename>
+Purpose: Retrieve stored insights for a dataset
+Response: JSON (complete dataset_insights document)
+
+Route: GET /api/health
+Purpose: Check MongoDB connectivity
+Response: JSON {status: "connected"|"offline", mongodb: bool}
+
+Route: GET/POST /preprocessing?filename=XXX
+Purpose: Preprocessing configuration & execution
+Methods:
+  GET: Show preprocessing form with AI recommendations
+  POST: Execute preprocessing + generate EDA report
+Response: HTML (eda_processing.html or preprocessing_result.html)
+
+Route: POST /analyse_chart
+Purpose: AI analysis of a single chart (on-demand)
+Body: {image_b64, chart_title, filename}
+Response: JSON {represents, key_findings[], anomalies[], recommendations[]}
+
+Route: GET/POST /ml?filename=XXX
+Purpose: ML model training
+Methods:
+  GET: Show target column selection form
+  POST: Execute ML pipeline
+Response: HTML (ml_input.html or ml_results.html)
+
+Route: GET /download_model?doc_id=XXX&model_name=YYY
+Purpose: Download trained model as .pkl
+Response: File (pickle binary, direct download)
+
+Route: GET /api/models/<filename>
+Purpose: List trained models for a dataset
+Response: JSON {models: [model_names]}
+
+
+PERFORMANCE CONSIDERATIONS
+================================================================================
+
+1. OPTIMIZATION TECHNIQUES
+   ──────────────────────
+
+   Backend:
+   ├─ GridFS for large file streaming (not memory-heavy)
+   ├─ Base64 encoding for images (web-friendly)
+   ├─ Lazy loading of DataFrames (only when needed)
+   ├─ Model caching (don't retrain for same parameters)
+   └─ LLM payload reduction (first 10 columns only)
+
+   Frontend:
+   ├─ CSS variables (single source of truth)
+   ├─ Minimal JavaScript (vanilla, no framework bloat)
+   ├─ Image lazy loading (defer off-screen loads)
+   ├─ Grid system (responsive without media queries)
+   └─ Smooth animations (GPU-accelerated with transform/opacity)
+
+   Database:
+   ├─ Index on filename (fast lookups)
+   ├─ Document embedding (denormalization where beneficial)
+   ├─ Pagination potential (for large result sets)
+   └─ TTL indexes optional (auto-cleanup of old results)
+
+
+2. SCALABILITY CONSIDERATIONS
+   ────────────────────────────
+
+   Current limitations:
+   ├─ Single Flask instance (use Gunicorn for production)
+   ├─ Local MongoDB (use MongoDB Atlas for cloud)
+   ├─ No caching layer (add Redis for session/result caching)
+   ├─ Synchronous requests (use Celery for async tasks)
+   └─ No load balancing (add nginx for multiple servers)
+
+   Future improvements:
+   ├─ Task queue for ML pipeline (processes in background)
+   ├─ Result caching (Redis for frequent queries)
+   ├─ API rate limiting (prevent abuse)
+   ├─ WebSocket for real-time progress updates
+   └─ Distributed MongoDB setup (replica sets, sharding)
+
+
+DEBUGGING & TROUBLESHOOTING
+================================================================================
+
+1. COMMON ISSUES
+   ──────────────
+
+   Issue: "OXLO_API_KEY not configured"
+   ─────────────────────────────────────
+   Cause: .env file missing or OXLO_API_KEY not set
+   Solution:
+     1. Create .env in project root
+     2. Add: OXLO_API_KEY=your_actual_key
+     3. Restart Flask
+     4. Browser console should show no errors
+
+   Issue: MongoDB connection errors
+   ────────────────────────────────
+   Cause: MongoDB not running on localhost:27017
+   Solution:
+     1. Verify MongoDB service running
+     2. Check connection string in code
+     3. Verify firewall allows port 27017
+     4. Test: mongosh localhost:27017
+
+   Issue: Chart analysis shows "Retry" button
+   ──────────────────────────────────────────
+   Cause: OXLO API key invalid, rate limited, or network error
+   Solution:
+     1. Check browser console (F12 → Console)
+     2. Check Flask logs (flask terminal output)
+     3. Verify OXLO_API_KEY is valid
+     4. Check internet connectivity
+     5. Retry after rate limit window
+
+   Issue: Files not uploading
+   ─────────────────────────
+   Cause: File too large, unsupported format, encoding issue
+   Solution:
+     1. Verify CSV format (comma-separated)
+     2. Check file is < 50MB
+     3. Ensure UTF-8 encoding
+     4. Try with sample data first
+
+   Issue: ML pipeline takes very long
+   ──────────────────────────────────
+   Cause: Large dataset, many features, long hyperparameter search
+   Solution:
+     1. Reduce dataset size (remove rows)
+     2. Drop unnecessary columns
+     3. Reduce cross-validation folds
+     4. Skip hyperparameter tuning
+
+
+2. DEBUG MODE CHECKLIST
+   ─────────────────────
+
+   Step 1: Verify Environment
+   ├─ Check .env file exists
+   ├─ Verify OXLO_API_KEY is set
+   ├─ Check MongoDB running
+   └─ View Flask logs in terminal
+
+   Step 2: Check Browser Console
+   ├─ F12 → Console tab
+   ├─ Look for JavaScript errors
+   ├─ Check Network tab for API failures
+   └─ Verify API responses in Response tab
+
+   Step 3: Check Flask Logs
+   ├─ Look for exception messages
+   ├─ Check MongoDB connection logs
+   ├─ Verify OXLO API calls succeeded (200 OK)
+   └─ Check error response content
+
+   Step 4: Verify MongoDB Data
+   ├─ mongosh localhost:27017
+   ├─ use clarityAI_database
+   ├─ db.fs.files.find() - check uploaded files
+   ├─ db.dataset_insights.find() - check analysis results
+   └─ db.ml_results.find() - check ML results
+
+   Step 5: Test API Endpoints Manually
+   ├─ curl http://localhost:5001/api/health
+   ├─ curl http://localhost:5001/upload (GET)
+   ├─ Verify responses in terminal
+
+
+CONCLUSION
+================================================================================
+
+Vera represents a comprehensive ML engineering solution combining:
+
+1. Professional-grade data analysis with Python/Pandas/NumPy
+2. Enterprise AI integration through OXLO LLM APIs
+3. Automatic machine learning with 10+ model families
+4. Modern, accessible web interface with design system
+5. Persistent storage with MongoDB & GridFS
+6. Graceful error handling and logging
+
+The architecture prioritizes:
+├─ Accuracy (Python-based calculations, not LLM for math)
+├─ Reliability (fallbacks, error handling, logging)
+├─ Usability (intuitive UI, clear error messages)
+├─ Extensibility (modular design, reusable components)
+└─ Maintainability (consistent patterns, clear documentation)
+
+================================================================================
+Document Version: 1.0
+Last Updated: April 4, 2026
+Status: Production Ready
+================================================================================

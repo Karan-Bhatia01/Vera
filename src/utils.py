@@ -173,6 +173,17 @@ def analyse_chart(
     """
     import openai
 
+    # Check if API key is configured
+    if not oxlo_api_key or oxlo_api_key == "":
+        logging.error("OXLO_API_KEY environment variable is not set. AI analysis disabled.")
+        return {
+            "represents": chart_title,
+            "key_findings": [],
+            "anomalies": [],
+            "recommendations": [],
+            "error": "OXLO_API_KEY not configured. Please set OXLO_API_KEY environment variable.",
+        }
+
     system_prompt = textwrap.dedent("""
         You are a senior data analyst reviewing a chart image.
         Return ONLY a valid JSON object — no preamble, no markdown fences.
@@ -224,7 +235,10 @@ def analyse_chart(
                 attempt, chart_title, exc,
             )
             if attempt == 2:
-                return empty_analysis(chart_title)
+                return {
+                    **empty_analysis(chart_title),
+                    "error": f"API Error: {str(exc)[:100]}"
+                }
 
 
 def parse_json_response(raw: str) -> dict:

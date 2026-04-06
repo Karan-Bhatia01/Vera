@@ -1,0 +1,355 @@
+<!-- ═══════════════════════════════════════════════════════════════════════════════
+     VERA NAVBAR — Global Navigation Bar
+     ═══════════════════════════════════════════════════════════════════════════════ -->
+
+<nav class="vera-navbar" id="veraNavbar">
+  <div class="vera-navbar__container">
+    
+    <!-- Logo / Brand -->
+    <a href="/" class="vera-navbar__logo">
+      <span class="vera-navbar__icon">✨</span>
+      <span class="vera-navbar__text">Vera</span>
+    </a>
+    
+    <!-- Nav Links (Desktop) -->
+    <div class="vera-navbar__links" id="navLinks">
+      <a href="/" class="vera-navbar__link" data-page="home">Home</a>
+      <a href="/upload" class="vera-navbar__link" data-page="upload">Upload</a>
+    </div>
+    
+    <!-- Right Side: Status Pill + Menu Button -->
+    <div class="vera-navbar__right">
+      <div class="vera-navbar__status" id="statusPill">
+        <span class="vera-navbar__status-dot"></span>
+        <span class="vera-navbar__status-text">Connecting…</span>
+      </div>
+      
+      <!-- Mobile Hamburger -->
+      <button class="vera-navbar__hamburger" id="hamburger" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<style>
+  /* ─────────────── NAVBAR BASE ─────────────── */
+
+  .vera-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-6);
+  }
+
+  .vera-navbar__container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+  }
+
+  /* ─────────────── LOGO ─────────────── */
+
+  .vera-navbar__logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-extrabold);
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity var(--transition-fast);
+  }
+
+  .vera-navbar__logo:hover {
+    opacity: 0.8;
+  }
+
+  .vera-navbar__icon {
+    font-size: var(--font-size-2xl);
+  }
+
+  .vera-navbar__text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─────────────── NAV LINKS ─────────────── */
+
+  .vera-navbar__links {
+    display: flex;
+    gap: var(--space-6);
+    margin-left: auto;
+    margin-right: auto;
+    align-items: center;
+  }
+
+  .vera-navbar__link {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-medium);
+    color: var(--fg-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+    position: relative;
+    padding-bottom: 4px;
+  }
+
+  .vera-navbar__link:hover,
+  .vera-navbar__link.active {
+    color: var(--accent-primary);
+  }
+
+  .vera-navbar__link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--accent-primary);
+    transition: width var(--transition-fast);
+  }
+
+  .vera-navbar__link:hover::after,
+  .vera-navbar__link.active::after {
+    width: 100%;
+  }
+
+  /* ─────────────── RIGHT SECTION ─────────────── */
+
+  .vera-navbar__right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-left: auto;
+  }
+
+  /* ─────────────── STATUS PILL ─────────────── */
+
+  .vera-navbar__status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    font-size: var(--font-size-sm);
+    color: var(--fg-secondary);
+    font-weight: var(--font-medium);
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .vera-navbar__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #60607a;
+    display: inline-block;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .vera-navbar__status.connected .vera-navbar__status-dot {
+    background: var(--accent-secondary);
+    animation: none;
+  }
+
+  .vera-navbar__status.offline .vera-navbar__status-dot {
+    background: var(--accent-destructive);
+    animation: none;
+  }
+
+  .vera-navbar__status-text {
+    font-size: var(--font-size-sm);
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ─────────────── HAMBURGER MENU ─────────────── */
+
+  .vera-navbar__hamburger {
+    display: none;
+    flex-direction: column;
+    background: none;
+    border: none;
+    cursor: pointer;
+    gap: 6px;
+    padding: 4px;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+  }
+
+  .vera-navbar__hamburger span {
+    width: 24px;
+    height: 2px;
+    background: var(--fg-primary);
+    border-radius: var(--radius-full);
+    transition: all var(--transition-fast);
+  }
+
+  .vera-navbar__hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(8px, 8px);
+  }
+
+  .vera-navbar__hamburger.active span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .vera-navbar__hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+  }
+
+  /* ─────────────── MOBILE RESPONSIVE ─────────────── */
+
+  @media (max-width: 768px) {
+    .vera-navbar__hamburger {
+      display: flex;
+    }
+
+    .vera-navbar__links {
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-default);
+      flex-direction: column;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-6);
+      margin: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height var(--transition-base);
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    .vera-navbar__links.active {
+      max-height: 300px;
+    }
+
+    .vera-navbar__link {
+      padding-bottom: 0;
+    }
+
+    .vera-navbar__link::after {
+      display: none;
+    }
+
+    .vera-navbar__status {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  // Set active nav link based on current page
+  function setActiveNavLink() {
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.vera-navbar__link');
+    
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (currentPath === '/' && href === '/' ||
+          currentPath.startsWith('/upload') && href === '/upload' ||
+          currentPath.startsWith('/datasets') && href === '/datasets') {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  }
+
+  // Toggle mobile menu
+  const hamburger = document.getElementById('hamburger');
+  const navLinks = document.getElementById('navLinks');
+  
+  if (hamburger && navLinks) {
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('active');
+      navLinks.classList.toggle('active');
+    });
+
+    // Close menu when link is clicked
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.classList.remove('active');
+        navLinks.classList.remove('active');
+      });
+    });
+  }
+
+  // Check MongoDB connectivity
+  async function checkHealth() {
+    try {
+      const response = await fetch('/api/health', { timeout: 3000 });
+      const data = await response.json();
+      const statusPill = document.getElementById('statusPill');
+      
+      if (statusPill) {
+        if (data.mongodb) {
+          statusPill.textContent = '● Connected';
+          statusPill.classList.remove('offline');
+          statusPill.classList.add('connected');
+        } else {
+          statusPill.textContent = '● Offline';
+          statusPill.classList.remove('connected');
+          statusPill.classList.add('offline');
+        }
+      }
+    } catch (error) {
+      const statusPill = document.getElementById('statusPill');
+      if (statusPill) {
+        statusPill.textContent = '● Offline';
+        statusPill.classList.add('offline');
+      }
+    }
+  }
+
+  // Check health on page load and every 10 seconds
+  document.addEventListener('DOMContentLoaded', () => {
+    setActiveNavLink();
+    checkHealth();
+    setInterval(checkHealth, 10000);
+  });
+</script>

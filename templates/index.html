@@ -3,85 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClarityAI — Data Analysis Platform</title>
+    <title>Upload Dataset — Vera</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
 
-<header class="page-header">
-    <h1>📊 ClarityAI</h1>
-    <p class="hint-text">Intelligent CSV Analysis Platform with AI Insights</p>
-</header>
+{% include 'partials/navbar.html' %}
 
-<div class="page-body">
-    <!-- Upload Section -->
-    <section class="section">
-        <p class="section-label">Upload Dataset</p>
-        <form method="POST" enctype="multipart/form-data" class="form-group">
-            <div class="field-row">
-                <label for="file-input">Select CSV File</label>
-                <input type="file" id="file-input" name="file" accept=".csv" required style="padding: var(--space-4); cursor: pointer;">
-            </div>
-            <p class="hint-text">Supported: CSV files up to 50MB. Formats: .csv</p>
-            <button type="submit" class="btn btn-primary btn-lg btn-full">Upload &amp; Explore →</button>
-        </form>
-    </section>
+<main style="margin-top: 56px;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6);">
 
-    <!-- Datasets List -->
-    {% if filenames %}
-    <section class="section">
-        <div class="flex justify-between items-center">
-            <p class="section-label" style="margin-bottom: 0;">Your Datasets</p>
-            <span class="badge">{{ filenames|length }} files</span>
-        </div>
-        <p class="hint-text">Click a dataset to explore and analyze</p>
-        
-        <div class="card-grid">
-            {% for filename in filenames %}
-            <div class="card-item">
-                <h4>{{ filename }}</h4>
-                <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4);">
-                    <a href="{{ url_for('info_layer', filename=filename) }}" class="btn btn-secondary btn-sm">View Info</a>
-                    <a href="{{ url_for('preprocessing_inputs', filename=filename) }}" class="btn btn-secondary btn-sm">Preprocess</a>
-                    <a href="{{ url_for('ml_pipeline_route', filename=filename) }}" class="btn btn-secondary btn-sm">ML Pipeline</a>
+        <!-- PAGE HEADER -->
+        <header style="padding: var(--space-8) 0; text-align: center;">
+            <h1 style="font-size: var(--font-size-3xl); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                📊 Upload Your Dataset
+            </h1>
+            <p style="font-size: var(--font-size-lg); color: var(--fg-secondary); margin: 0;">
+                Transform raw data into model-ready insights
+            </p>
+        </header>
+
+        <!-- TWO-COLUMN LAYOUT -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); margin-bottom: var(--space-8);">
+
+            <!-- LEFT COLUMN: UPLOAD ZONE -->
+            <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <h2 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                    Upload CSV File
+                </h2>
+                <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; font-size: var(--font-size-sm);">
+                    Drag & drop or click to select your CSV file
+                </p>
+
+                <form method="POST" enctype="multipart/form-data" style="flex: 1; display: flex; flex-direction: column;">
+                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 2px dashed var(--border-default); border-radius: var(--radius-md); padding: var(--space-8); background: rgba(79, 70, 229, 0.02); transition: all 0.2s; cursor: pointer;" id="dropZone">
+                        <div style="text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: var(--space-4);">📁</div>
+                            <p style="font-size: var(--font-size-lg); font-weight: 600; color: var(--fg-primary); margin: 0 0 var(--space-2) 0;">
+                                Click or drag CSV here
+                            </p>
+                            <p style="font-size: var(--font-size-sm); color: var(--fg-secondary); margin: 0;">
+                                Max size: 50MB
+                            </p>
+                        </div>
+                        <input 
+                            type="file" 
+                            id="file-input" 
+                            name="file" 
+                            accept=".csv" 
+                            required 
+                            style="display: none;"
+                        >
+                    </div>
+
+                    <div style="margin-top: var(--space-6);">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: var(--space-4);">
+                            Upload & Explore →
+                        </button>
+                    </div>
+                </form>
+
+                <div style="margin-top: var(--space-4); padding: var(--space-4); background: rgba(79, 70, 229, 0.05); border-radius: var(--radius-md); border-left: 3px solid var(--accent-primary);">
+                    <p style="font-size: var(--font-size-sm); color: var(--fg-secondary); margin: 0;">
+                        <strong>Supported formats:</strong> CSV files up to 50MB
+                    </p>
                 </div>
+            </section>
+
+            <!-- RIGHT COLUMN: INFO -->
+            <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); display: flex; flex-direction: column;">
+                <h2 style="font-size: var(--font-size-lg); margin: 0 0 var(--space-4) 0; color: var(--fg-primary);">
+                    What Vera Does
+                </h2>
+
+                <div style="display: grid; gap: var(--space-4); flex: 1;">
+                    <!-- Feature 1 -->
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: var(--space-2);">🔍</div>
+                        <h3 style="font-size: var(--font-size-md); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                            Smart Data Analysis
+                        </h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--fg-secondary); margin: 0;">
+                            AI identifies patterns, flags data quality issues, and provides insights automatically
+                        </p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: var(--space-2);">⚙️</div>
+                        <h3 style="font-size: var(--font-size-md); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                            Auto ML Pipeline
+                        </h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--fg-secondary); margin: 0;">
+                            Preprocessing, feature engineering, and model training — all automated
+                        </p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: var(--space-2);">💬</div>
+                        <h3 style="font-size: var(--font-size-md); margin: 0 0 var(--space-2) 0; color: var(--fg-primary);">
+                            AI Assistant
+                        </h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--fg-secondary); margin: 0;">
+                            Ask questions about your data with our intelligent chatbot
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- DATASETS LIST SECTION -->
+        {% if filenames %}
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                <h2 style="font-size: var(--font-size-lg); margin: 0; color: var(--fg-primary);">
+                    Your Datasets
+                </h2>
+                <span style="background: var(--accent-primary); color: white; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: 600;">
+                    {{ filenames|length }} files
+                </span>
             </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
+            <p style="color: var(--fg-secondary); margin: 0 0 var(--space-6) 0; font-size: var(--font-size-sm);">
+                Click a dataset to explore and analyze
+            </p>
 
-    <!-- Selected Dataset Preview -->
-    {% if selected_filename and preview_data %}
-    <section class="section preview-section">
-        <div class="flex justify-between items-center">
-            <p class="section-label" style="margin-bottom: 0;">Dataset Preview</p>
-            <span class="filename-badge">{{ selected_filename }}</span>
-        </div>
-        
-        <div class="tbl-wrap">
-            <table>
-                <thead>
-                    <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
-                </thead>
-                <tbody>
-                    {% for row in preview_data %}
-                    <tr>{% for col in columns %}<td>{{ row[col] }}</td>{% endfor %}</tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4);">
+                {% for filename in filenames %}
+                <div style="background: var(--bg-primary); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); transition: all 0.2s;">
+                    <h3 style="font-size: var(--font-size-md); margin: 0; color: var(--fg-primary); word-break: break-word;">
+                        📄 {{ filename }}
+                    </h3>
+                    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                        <a href="{{ url_for('info_layer', filename=filename) }}" class="btn btn-secondary" style="flex: 1; text-align: center;">
+                            Info
+                        </a>
+                        <a href="{{ url_for('preprocessing_inputs', filename=filename) }}" class="btn btn-secondary" style="flex: 1; text-align: center;">
+                            Preprocess
+                        </a>
+                        <a href="{{ url_for('ml_pipeline_route', filename=filename) }}" class="btn btn-secondary" style="flex: 1; text-align: center;">
+                            ML
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
-        <div class="form-footer" style="border: none; padding-top: 0; margin-top: var(--space-8);">
-            <a href="{{ url_for('info_layer', filename=selected_filename) }}" class="btn btn-primary">Analyze Dataset →</a>
-        </div>
-    </section>
-    {% endif %}
+        <!-- DATA PREVIEW SECTION -->
+        {% if selected_filename and preview_data %}
+        <section style="background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                <h2 style="font-size: var(--font-size-lg); margin: 0; color: var(--fg-primary);">
+                    Dataset Preview
+                </h2>
+                <span style="background: var(--bg-tertiary); color: var(--fg-secondary); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-sm);">
+                    {{ selected_filename }}
+                </span>
+            </div>
 
-</div>
+            <div style="overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-default);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: var(--bg-tertiary);">
+                        <tr>
+                            {% for col in columns %}
+                            <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--fg-primary); border-bottom: 1px solid var(--border-default);">
+                                {{ col }}
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preview_data %}
+                        <tr>
+                            {% for col in columns %}
+                            <td style="padding: var(--space-3); color: var(--fg-secondary); border-bottom: 1px solid var(--border-default); font-size: var(--font-size-sm);">
+                                {{ row[col] | string | truncate(50) }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: var(--space-6);">
+                <a href="{{ url_for('info_layer', filename=selected_filename) }}" class="btn btn-primary">
+                    Analyze Dataset →
+                </a>
+            </div>
+        </section>
+        {% endif %}
+
+    </div>
+</main>
 
 <script src="{{ url_for('static', filename='js/modern-ui.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+<script src="{{ url_for('static', filename='js/vera-chatbot.js') }}" defer></script>
+
+<script>
+    // File upload drag & drop
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = 'rgba(79, 70, 229, 0.1)';
+        dropZone.style.borderColor = 'var(--accent-primary)';
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.backgroundColor = 'rgba(79, 70, 229, 0.02)';
+        dropZone.style.borderColor = 'var(--border-default)';
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = 'rgba(79, 70, 229, 0.02)';
+        dropZone.style.borderColor = 'var(--border-default)';
+        fileInput.files = e.dataTransfer.files;
+    });
+</script>
+
 </body>
 </html>
