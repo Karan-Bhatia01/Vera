@@ -180,9 +180,9 @@
                     <tbody>
                         {% for row in preview_data %}
                         <tr>
-                            {% for col in columns %}
+                            {% for col_idx in range(columns|length) %}
                             <td style="padding: var(--space-3); color: var(--fg-secondary); border-bottom: 1px solid var(--border-default); font-size: var(--font-size-sm);">
-                                {{ row[col] | string | truncate(50) }}
+                                {{ row[col_idx] | string | truncate(50) }}
                             </td>
                             {% endfor %}
                         </tr>
