@@ -33,6 +33,12 @@ Upload a CSV file (any size up to 50MB, any schema). Vera will analyze it, show 
 
 ---
 
+## Project Video
+
+https://github.com/user-attachments/assets/5de4be8b-4a96-4fea-af48-5e126a7f131b
+
+---
+
 ## Features
 
 ### 1. Intelligent Dataset Analysis  
