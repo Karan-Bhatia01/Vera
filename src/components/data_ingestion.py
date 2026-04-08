@@ -50,7 +50,7 @@ class DataIngestion:
                             encoding=encoding,
                             sep=sep,
                             on_bad_lines=bad_lines,
-                            engine="python",
+                            engine="c",
                         )
                         # Must have at least 1 column and 1 row
                         if df.shape[1] >= 1 and df.shape[0] >= 1:
