@@ -359,18 +359,18 @@ Builds a prompt with ML results (feature plan, best model, problem type, dataset
 
 ## Registered Oxlo.ai Email
 
-**TODO:** Update this with the actual developer's Oxlo.ai registered email:
+The actual developer's Oxlo.ai registered email:
 
 ```
-Registered Oxlo.ai Email: [your-email@example.com]
+Registered Oxlo.ai Email: [bhatiakaran168@example.com]
 ```
-*(Reminder to the author: Set this before final submission)*
+
 
 ---
 
 ## Built for OxBuild Hackathon
 
-Vera was built for the **OxBuild hackathon by Oxlo.ai** — a 48-hour sprint to build with Oxlo's AI models. The key insight: don't call one model for everything. Chain them. Each model gets specific context, outputs something precise, and the next model builds on it. The result is faster inference, lower cost, and more intelligent decisions.
+Vera was built for the **OxBuild hackathon by Oxlo.ai** — a sprint to build with Oxlo's AI models. The key insight: don't call one model for everything. Chain them. Each model gets specific context, outputs something precise, and the next model builds on it. The result is faster inference, lower cost, and more intelligent decisions.
 
 This README was written to show judges exactly how the code works, not to hide it behind marketing speak. If you want to understand the pipeline, read the model orchestration section. If you want to hack on it, the code is organized to make changes easy.
 
