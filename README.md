@@ -211,7 +211,7 @@ Each is chosen for speed + capability at that step. One model can't do everythin
         ↓                        ↓           ↓
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │   MONGODB        │  │  OXLO.AI API     │  │  PYTHON MODULES  │
-│  clarityAI_db    │  │  (OpenAI SDK)    │  │  (Scikit-Learn)  │
+│  Vera_db    │  │  (OpenAI SDK)    │  │  (Scikit-Learn)  │
 │  ├── dataset     │  │  • llama-3.2-3b  │  │  • MLPipeline    │
 │  ├── ml_results  │  │  • mistral-7b    │  │  • DataPrep      │
 │  └── insights    │  │  • deepseek-r1   │  │  • SHAP          │
@@ -235,7 +235,7 @@ Each is chosen for speed + capability at that step. One model can't do everythin
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd ClarityAI2.0
+cd Vera 
 
 # 2. Create a virtual environment
 python -m venv venv
@@ -281,7 +281,7 @@ gunicorn app:app --bind 0.0.0.0:5000 --workers 2 --timeout 60
 ## Project Structure
 
 ```
-ClarityAI2.0/
+Vera /
 ├── app.py                           # Flask entry point, route definitions
 ├── requirements.txt                 # Python dependencies
 ├── Procfile                         # Gunicorn command for Render
