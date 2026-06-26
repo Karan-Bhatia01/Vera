@@ -20,21 +20,23 @@ from src.logger import logging
 from src.exception import CustomException
 from src.utils import (
     load_dataframe_from_mongo,
-    llm_agent,
     fig_to_b64,
     analyse_chart,
-    parse_json_response,
     empty_analysis,
 )
+from src.agents.missing_value_agent import decide_missing_value_strategy
 
 load_dotenv()
 
 sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
 
-_OXLO_API_URL = "https://api.oxlo.ai/v1/chat/completions"
-_OXLO_API_KEY = os.getenv("OXLO_API_KEY", "")
-_OXLO_MODEL   = "mistral-7b"
-_CHART_DPI    = 72
+_VISION_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+_VISION_API_KEY = os.getenv("GROQ_API_KEY", "")
+# Fast multimodal model for chart analysis. qwen3.6 is a *reasoning* model that
+# emits <think> blocks and is slow for this — Llama 4 Scout is vision-capable and
+# much quicker. Overridable via GROQ_VISION_MODEL.
+_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+_CHART_DPI      = 72
 
 
 class DataPreprocessing:
@@ -43,7 +45,7 @@ class DataPreprocessing:
 
     Workflow
     --------
-    1. get_ai_insights()          → {col: method} — skips LLM if no nulls
+    1. get_ai_insights()          → {col: method} — skips agent if no nulls
     2. preprocess_data(strategy)  → cleaned DataFrame (in-memory only)
     3. generate_eda_report(df)    → {chart_title: image_b64}
                                     No AI calls here — done on-demand via /analyse_chart
@@ -55,13 +57,13 @@ class DataPreprocessing:
         filename: str,
         target_column: str,
         columns_to_drop: list[str] | None = None,
-        oxlo_api_key: str = "",
+        vision_api_key: str = "",
     ) -> None:
         try:
             self.filename        = filename
             self.target_column   = target_column
             self.columns_to_drop = columns_to_drop or []
-            self._oxlo_key       = oxlo_api_key or _OXLO_API_KEY
+            self._vision_key     = vision_api_key or _VISION_API_KEY
 
             mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
             client  = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
@@ -81,42 +83,15 @@ class DataPreprocessing:
             return tc
         return None
 
-    # ── 1. AI missing-value strategy ──────────────────────────────────────────
+    # ── 1. Missing-value strategy (agent-based) ───────────────────────────────
     def get_ai_insights(self) -> dict[str, str]:
+        """
+        Returns {column: fill_method} for columns with missing values,
+        decided by the missing value agent. Returns {} if no nulls exist
+        (no LLM/agent call needed in that case).
+        """
         try:
-            df = self.df
-            null_counts     = df.isnull().sum()
-            cols_with_nulls = null_counts[null_counts > 0].to_dict()
-
-            if not cols_with_nulls:
-                logging.info("No missing values — skipping AI insights.")
-                return {}
-
-            analysis = {
-                "shape":               df.shape,
-                "null_values":         cols_with_nulls,
-            }
-
-            prompt = textwrap.dedent("""
-                Given the null_values dict, suggest the SINGLE best method to fill each column.
-                Valid methods: mean, median, mode, ffill, bfill, zero, drop
-
-                Return ONLY JSON (no explanation):
-                {"column_name": "method", ...}
-            """).strip()
-
-            llm_result   = llm_agent(prompt=prompt, role="Data Analyst",
-                                     context=json.dumps(analysis, separators=(',', ':')))
-            raw_response = llm_result.get("response", "")
-
-            if isinstance(raw_response, dict):
-                insights = raw_response
-            else:
-                insights = parse_json_response(str(raw_response))
-
-            logging.info("AI missing-value strategy: %s", insights)
-            return insights
-
+            return decide_missing_value_strategy(self.df)
         except Exception as e:
             raise CustomException(e, sys) from e
 
@@ -200,7 +175,7 @@ class DataPreprocessing:
         try:
             result = analyse_chart(
                 image_b64, chart_title,
-                self._oxlo_key, _OXLO_API_URL, _OXLO_MODEL,
+                self._vision_key, _VISION_API_URL, _VISION_MODEL,
             )
             logging.info("On-demand analysis done for '%s'.", chart_title)
             return result

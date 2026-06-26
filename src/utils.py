@@ -162,12 +162,14 @@ def fig_to_b64(fig, dpi: int = 72) -> str:
 def analyse_chart(
     image_b64: str,
     chart_title: str,
-    oxlo_api_key: str,
-    oxlo_api_url: str,
-    oxlo_model: str,
+    api_key: str,
+    api_url: str,
+    model: str,
 ) -> dict[str, Any]:
     """
-    Send a base64 PNG to the Oxlo/Mistral vision endpoint via OpenAI client.
+    Send a base64 PNG to a vision-capable LLM endpoint via OpenAI client.
+    Provider-agnostic — works with any OpenAI-compatible API (Groq, Oxlo, etc.)
+    based on the api_key/api_url/model passed in.
     Returns a structured JSON dict with keys:
         represents, key_findings, anomalies, recommendations
     Thread-safe — no shared state.
@@ -175,29 +177,42 @@ def analyse_chart(
     import openai
 
     # Check if API key is configured
-    if not oxlo_api_key or oxlo_api_key == "":
-        logging.error("OXLO_API_KEY environment variable is not set. AI analysis disabled.")
+    if not api_key or api_key == "":
+        logging.error("No API key provided for chart analysis. AI analysis disabled.")
         return {
             "represents": chart_title,
             "key_findings": [],
             "anomalies": [],
             "recommendations": [],
-            "error": "OXLO_API_KEY not configured. Please set OXLO_API_KEY environment variable.",
+            "error": "API key not configured for chart analysis.",
         }
 
     system_prompt = textwrap.dedent("""
-        You are a senior data analyst reviewing a chart image.
+        You are a senior business/data analyst presenting a chart to decision-makers.
+        Translate what the chart shows into BUSINESS insight — focus on the story,
+        the drivers behind it, and what to do about it, not statistical jargon.
+
+        For each field:
+          - represents:      one plain-language sentence on what the chart shows.
+          - key_findings:    the most important business takeaways and the likely
+                             DRIVERS behind them (e.g. which segments/values move the
+                             outcome). Quantify with the numbers visible in the chart.
+          - anomalies:       outliers, imbalances, or data-quality concerns that
+                             could mislead a business decision.
+          - recommendations: concrete, actionable next steps a business or modelling
+                             team should take based on this chart.
+
         Return ONLY a valid JSON object — no preamble, no markdown fences.
         Schema:
         {
           "represents":      "<one sentence: what this chart shows>",
-          "key_findings":    ["<finding 1>", "<finding 2>", ...],
+          "key_findings":    ["<business takeaway / driver 1>", "<takeaway 2>", ...],
           "anomalies":       ["<anomaly 1>", ...],
-          "recommendations": ["<action 1>", ...]
+          "recommendations": ["<actionable step 1>", ...]
         }
     """).strip()
 
-    base_url = oxlo_api_url.replace("/chat/completions", "")
+    base_url = api_url.replace("/chat/completions", "")
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": [
@@ -217,22 +232,22 @@ def analyse_chart(
         try:
             client = openai.OpenAI(
                 base_url=base_url,
-                api_key=oxlo_api_key,
-                timeout=90,
+                api_key=api_key,
+                timeout=45,
             )
             response = client.chat.completions.create(
-                model=oxlo_model,
+                model=model,
                 max_tokens=1024,
                 temperature=0.3,
                 messages=messages,
             )
             raw = response.choices[0].message.content.strip()
-            logging.info("Oxlo analysis received for '%s' (attempt %d).", chart_title, attempt)
+            logging.info("Vision analysis received for '%s' (attempt %d).", chart_title, attempt)
             return parse_json_response(raw)
 
         except Exception as exc:
             logging.warning(
-                "Oxlo API attempt %d failed for '%s': %s",
+                "Vision API attempt %d failed for '%s': %s",
                 attempt, chart_title, exc,
             )
             if attempt == 2:
@@ -240,7 +255,6 @@ def analyse_chart(
                     **empty_analysis(chart_title),
                     "error": f"API Error: {str(exc)[:100]}"
                 }
-
 
 def parse_json_response(raw: str) -> dict:
     """

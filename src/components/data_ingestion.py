@@ -20,15 +20,16 @@ class DataIngestion:
         except Exception as e:
             raise CustomException(e, sys)
 
-    def store_file(self, file):
-        """Store uploaded file in MongoDB GridFS."""
+    def store_file(self, file, owner_email: str = None):
+        """Store uploaded file in MongoDB GridFS, tagged with its owner."""
         try:
             self.fs.put(
                 file.read(),
                 filename=file.filename,
                 content_type=file.content_type,
+                owner_email=owner_email,
             )
-            logging.info("File '%s' stored in GridFS.", file.filename)
+            logging.info("File '%s' stored in GridFS for owner '%s'.", file.filename, owner_email)
         except Exception as e:
             raise CustomException(e, sys)
 
@@ -121,7 +122,9 @@ class DataIngestion:
 
         except Exception as e:
             logging.error("get_preview failed: %s", e)
-            return None, None          # Never crash the page — return gracefully
+            return None, None
+
+        # Never crash the page — return gracefully
 
     def get_file_by_name(self, filename: str) -> pd.DataFrame:
         """
@@ -144,11 +147,36 @@ class DataIngestion:
         except Exception as e:
             raise CustomException(e, sys)
 
-    def get_all_filenames(self):
-        """Return sorted list of CSV filenames only — excludes .pkl and other non-CSV files."""
+    def get_all_filenames(self, owner_email: str = None):
+        """
+        Return sorted list of CSV filenames only — excludes .pkl and other non-CSV files.
+        If owner_email is given, only returns files owned by that user.
+        """
         try:
-            all_files = self.db.fs.files.distinct("filename")
-            return sorted(f for f in all_files if f.lower().endswith(".csv"))
+            query = {"filename": {"$regex": r"\.csv$", "$options": "i"}}
+            if owner_email:
+                query["owner_email"] = owner_email
+
+            docs = self.db.fs.files.find(query, {"filename": 1})
+            return sorted({d["filename"] for d in docs})
+        except Exception as e:
+            raise CustomException(e, sys)
+
+    def get_owner(self, filename: str):
+        """Return the owner_email tagged on a file, or None if untagged/not found."""
+        try:
+            doc = self.db.fs.files.find_one({"filename": filename}, {"owner_email": 1})
+            return doc.get("owner_email") if doc else None
+        except Exception as e:
+            raise CustomException(e, sys)
+
+    def count_files_for_owner(self, owner_email: str) -> int:
+        """Count how many CSV datasets a given user currently has stored."""
+        try:
+            return self.db.fs.files.count_documents({
+                "filename": {"$regex": r"\.csv$", "$options": "i"},
+                "owner_email": owner_email,
+            })
         except Exception as e:
             raise CustomException(e, sys)
 

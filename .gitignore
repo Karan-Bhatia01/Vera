@@ -1,3 +1,18 @@
-venv
+vera_venv
 .env
 logs
+
+# Runtime job store (transient async job state)
+.runtime/
+
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+node_modules/
+
+

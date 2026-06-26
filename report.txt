@@ -1,0 +1,181 @@
+==============================================================================
+ VERA / ClarityAI 2.0  —  CHANGE REPORT
+ Session work: ML refactor, bulletproofing, auth, EDA prompt, Data Info fix,
+ cleanup, and docs.
+==============================================================================
+
+This report explains, in plain language, everything that was changed and WHY,
+so you can understand the codebase and verify the work.
+
+------------------------------------------------------------------------------
+1. SPLIT THE ML PIPELINE INTO A PACKAGE  (item 1)
+------------------------------------------------------------------------------
+WHAT:
+  The single 700-line file `src/components/ml_pipeline.py` was deleted and its
+  logic moved into a new focused package: `src/ml/`.
+
+  New files:
+    src/ml/__init__.py        -> exposes `MLPipeline`
+    src/ml/dtype_utils.py     -> normalize_dtypes() (bulletproofing, see #2)
+    src/ml/problem_type.py    -> detect_problem_type() (classification/regression)
+    src/ml/models.py          -> get_models() (the model registry per problem type)
+    src/ml/preprocessing.py   -> build_splits() (feature plan -> encoded train/test)
+    src/ml/training.py        -> train_and_evaluate() + metrics + best_model_name()
+    src/ml/persistence.py     -> save_results() (models to GridFS, metrics to Mongo)
+    src/ml/pipeline.py        -> MLPipeline orchestrator that ties it together
+
+  The LLM agents were intentionally LEFT where they are (`src/agents/`), as you
+  requested ("split file only, keep agents").
+
+WHY:
+  The old file mixed loading, preprocessing, model definitions, training,
+  evaluation, SHAP, and saving in one class — and the train/evaluate logic was
+  literally DUPLICATED (once in `train_and_evaluate`, once inline in `run`).
+  Splitting it makes each concern testable and removes the duplication.
+
+IMPACT / COMPATIBILITY:
+  The only external user was `routes/ml.py`, updated to `from src.ml import
+  MLPipeline`. The public interface is unchanged:
+      MLPipeline(filename, target_column).run(progress_callback) -> dict
+  The returned dict has the same keys the frontend already expects
+  (problem_type, target_column, results, best_model, rank_metric, shap, ...).
+
+------------------------------------------------------------------------------
+2. BULLETPROOFED THE PIPELINE (no more dtype crashes)  (item 2)
+------------------------------------------------------------------------------
+THE BUG YOU HIT:
+  "Cannot interpret '<StringDtype(storage='python', na_value=nan)>' as a data type"
+  This happened because some CSVs load with pandas *extension* dtypes
+  (StringDtype, nullable Int64/Float64, BooleanDtype). numpy/scikit-learn don't
+  understand those, so `np.issubdtype(...)` in problem-type detection crashed the
+  whole run.
+
+THE FIX (you chose "no gate, just bulletproof it"):
+  - src/ml/dtype_utils.normalize_dtypes(): on load, every extension dtype is
+    downcast to a plain numpy dtype (nullable numbers -> float64, everything else
+    -> object). Applied in MLPipeline.__init__ BEFORE anything touches the data.
+  - src/ml/problem_type.detect_problem_type(): rewritten to use pandas type
+    predicates (is_float_dtype, is_integer_dtype, ...) instead of np.issubdtype,
+    so it can never crash on an exotic dtype.
+  - src/ml/preprocessing._assign_roles(): keeps the earlier guard that reroutes a
+    text column the LLM mislabelled as "numeric" (the 'Petrol' crash) to one-hot
+    instead of sending it to StandardScaler.
+
+  Net effect: a messy dataset is normalized and trained instead of crashing, and
+  the pipeline returns real metrics. Verified end-to-end by forcing extension
+  dtypes on a real dataset and running the full path with no error.
+
+  NOTE: There is no "ML not available for this dataset" message anymore — per your
+  choice we make the pipeline robust rather than blocking datasets.
+
+------------------------------------------------------------------------------
+3. FIXED AUTHENTICATION (couldn't bypass login before)  (item 3)
+------------------------------------------------------------------------------
+THE BUG:
+  `App.jsx` had NO route protection. Anyone could open /upload or /dashboard/*
+  by typing the URL. The only check was a weak `useEffect` that ran AFTER the
+  page rendered.
+
+THE FIX:
+  - New file: frontend/src/components/ProtectedRoute.jsx
+      * Reads the JWT from localStorage.
+      * Decodes it and checks BOTH presence AND expiry (the `exp` claim).
+      * If missing/expired -> clears the token and redirects to /login.
+  - App.jsx wraps /upload and /dashboard/* in <ProtectedRoute>. Public routes
+    (landing, login, signup) are untouched.
+  - DashboardLayout.jsx: removed its now-redundant manual token check.
+
+  The backend already enforced @require_auth on every API route, so this closes
+  the frontend gap. Now the pages themselves are gated, not just the data.
+
+------------------------------------------------------------------------------
+4. EDA PROMPT -> BUSINESS INSIGHTS  (item 5)
+------------------------------------------------------------------------------
+WHAT:
+  The chart-analysis system prompt in `src/utils.py` (analyse_chart) was rewritten
+  to produce BUSINESS takeaways and the DRIVERS behind them, plus actionable
+  recommendations — instead of dry statistical narration. The JSON response schema
+  (represents / key_findings / anomalies / recommendations) is unchanged, so the
+  frontend renders it exactly as before; only the content style changed.
+
+------------------------------------------------------------------------------
+5. FIXED "AI INSIGHTS NOT SHOWING" ON DATA INFO  (item 6)
+------------------------------------------------------------------------------
+ROOT CAUSE (this was subtle):
+  The LLM was returning a VALID but LONG insights JSON. The shared call,
+  `call_llm`, had a hard-coded `max_tokens=1024`. The richer insights JSON
+  (summary + quality_flags + column_insights + correlations + recommended_target
+  + feature_engineering + preprocessing + next_steps + uncertainty_notes) exceeded
+  1024 tokens, so the reply was TRUNCATED mid-object, failed to parse, and the
+  code fell back to empty insights -> nothing rendered.
+
+THE FIX:
+  - src/agents/llm_provider.call_llm now accepts a `max_tokens` parameter.
+  - routes/analysis.py asks for max_tokens=3000 (env: GROQ_INSIGHTS_MAX_TOKENS)
+    and a slightly longer timeout for the insights call.
+  Verified: insights now come back fully populated (multi-sentence summary,
+  several quality flags, 6 column insights, a recommended target, feature-
+  engineering and preprocessing suggestions).
+
+------------------------------------------------------------------------------
+6. RESILIENCE ALREADY IN PLACE (carried over from earlier this session)
+------------------------------------------------------------------------------
+  - Groq rate-limit (HTTP 429) handling: call_llm retries with backoff, honoring
+    the server's suggested wait.
+  - Deterministic fallbacks so the pipeline never hard-fails on the LLM:
+      * feature_engineering_agent -> dtype/cardinality heuristic plan
+      * model_selection_agent     -> default model shortlist
+  - mongo_storage.get_db() reuses ONE MongoClient with a fast timeout (was
+    leaking a new client per call and could hang).
+  - axios has a 20s timeout so a stalled backend can't spin "Loading..." forever.
+
+------------------------------------------------------------------------------
+7. LIGHT READABILITY CLEANUP  (item 4 — "don't stress on it")
+------------------------------------------------------------------------------
+  - The ML split itself is the biggest readability win (small, named modules;
+    duplicated training logic removed).
+  - routes/ml.py and routes/eda.py now log the exception when a background job
+    fails (previously they failed SILENTLY — the error only reached the job store,
+    never the log, which made debugging hard).
+  - DashboardLayout simplified (dead auth code removed).
+  We deliberately did NOT do a risky project-wide rewrite.
+
+------------------------------------------------------------------------------
+8. DOCS
+------------------------------------------------------------------------------
+  - README.md rewritten to match the CURRENT architecture: React + Flask, the
+    routes/ and services/ layers, the src/agents and src/ml packages, JWT auth,
+    the async job model, env vars, and an accurate project tree. (The old README
+    referenced a templates/HTML frontend and the deleted ml_pipeline.py.)
+  - This report.txt.
+
+------------------------------------------------------------------------------
+HOW TO VERIFY LOCALLY
+------------------------------------------------------------------------------
+  Backend imports:
+      python -c "import app, routes.ml, src.ml; print('ok')"
+  Auth: log out, then try to open /dashboard directly -> you should be bounced to
+      /login. Log in -> you get through.
+  ML: upload a CSV (even one with messy/text-as-number columns), pick a target,
+      run training -> it should complete and show metrics instead of crashing.
+  Data Info: open a dataset's Data Info -> the AI Summary, Quality Flags, Column
+      Insights, Recommended Target, etc. should all be populated.
+
+------------------------------------------------------------------------------
+FILES CHANGED / ADDED / REMOVED (summary)
+------------------------------------------------------------------------------
+  ADDED:
+    src/ml/__init__.py, dtype_utils.py, problem_type.py, models.py,
+    preprocessing.py, training.py, persistence.py, pipeline.py
+    frontend/src/components/ProtectedRoute.jsx
+    report.txt
+  REMOVED:
+    src/components/ml_pipeline.py   (logic moved into src/ml/)
+  CHANGED:
+    routes/ml.py, routes/eda.py, routes/analysis.py
+    src/agents/llm_provider.py, feature_engineering_agent.py, model_selection_agent.py
+    src/utils.py
+    frontend/src/App.jsx, components/dashboard/DashboardLayout.jsx
+    README.md
+
+==============================================================================
