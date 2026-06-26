@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import gridfs
 
-client = MongoClient("mongodb+srv://bhatiakaran168_db_user:4d4jWUd0c8qsgrLj@clarityai.fje0nqm.mongodb.net/?appName=clarityAI")
+client = MongoClient("....")
 db = client["clarityAI_database"]
 fs = gridfs.GridFS(db)
 
