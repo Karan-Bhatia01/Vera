@@ -78,7 +78,12 @@ class MLPipeline:
                 feature_names, problem_type, progress=progress,
             )
             if not results:
-                raise Exception("No models could be trained on this dataset.")
+                # train_and_evaluate raises with concrete reasons when models fail;
+                # reaching here means no candidate models were produced at all.
+                raise Exception(
+                    "No candidate models were available to train for "
+                    f"problem type '{problem_type}'."
+                )
 
             rank_metric = "accuracy" if problem_type == "classification" else "r2"
             best_model = best_model_name(results, rank_metric)

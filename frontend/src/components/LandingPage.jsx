@@ -1,4 +1,5 @@
 import Background from "./Background";
+import ConnectionStatus from "./ConnectionStatus";
 import Navbar from "./landing/Navbar";
 import Hero from "./landing/Hero";
 import Stats from "./landing/Stats";
@@ -11,6 +12,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#f0ece2] font-['Space_Grotesk'] relative">
       <Background />
+      <ConnectionStatus />
       <div className="relative z-10">
         <Navbar />
         <Hero />

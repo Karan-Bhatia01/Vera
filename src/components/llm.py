@@ -34,7 +34,7 @@ Include all these keys: summary, quality_flags, column_insights, next_steps, unc
 class AnalysisExplainer:
     """
     Loads a dataset from MongoDB GridFS, computes descriptive statistics
-    using pandas, and generates structured JSON insights via OXLO LLM.
+    using pandas, and generates structured JSON insights via the LLM (Groq).
 
     Usage
     -----
@@ -152,16 +152,17 @@ class AnalysisExplainer:
 
     def explain_analysis(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """
-        Send pre-computed statistics to the LLM with AGGRESSIVE payload compression.
-        
-        Strategy: Multiple fallback levels to ensure payload stays under 50KB hard limit.
+        Send the pre-computed statistics to the LLM and return the insights.
+
+        The prompt must stay under a 50KB limit, so we first send only the
+        essential stats, and shrink further if that is still too big.
         """
         try:
-            # LEVEL 0: Filter & select only essential information
+            # Keep only the most useful stats to keep the prompt small.
             essential_keys = {"shape", "columns", "null_values", "null_percentages"}
             prompt_data = {k: v for k, v in analysis.items() if k in essential_keys}
 
-            # Add LIMITED describe stats (only 5 columns max, only basic stats)
+            # Add a small sample of describe() stats: first 5 columns, basic stats only.
             if "describe" in analysis:
                 describe_dict = analysis["describe"]
                 cols_to_include = list(describe_dict.keys())[:5]
@@ -175,7 +176,7 @@ class AnalysisExplainer:
                     for col in cols_to_include
                 }
 
-            # Build COMPACT message (single-line JSON, no indentation)
+            # Build a compact message (single-line JSON, no indentation).
             user_message = (
                 "Analyze this dataset summary and respond ONLY with valid JSON:\n"
                 f"{json.dumps(prompt_data, separators=(',', ':'), default=str)}\n\n"
@@ -186,16 +187,14 @@ class AnalysisExplainer:
             payload_size = len(user_message.encode('utf-8'))
             logging.info("Payload: %d bytes", payload_size)
 
-            # If STILL too large after aggressive reduction, make it even smaller
+            # If it is still too big, shrink to the bare minimum: row/column
+            # counts plus only the columns that actually have missing values.
             if payload_size > 50_000:
                 logging.warning("Payload still large (%d bytes). Final reduction.", payload_size)
-                # Remove describe entirely
-                if "describe_sample" in prompt_data:
-                    del prompt_data["describe_sample"]
-                # Only keep null info + shape
+                rows, columns = analysis["shape"]  # shape is (rows, columns)
                 prompt_data = {
-                    "rows": analysis["shape"][0],
-                    "columns": len(analysis["shape"][1]) if isinstance(analysis["shape"], tuple) else analysis["shape"][1],
+                    "rows": rows,
+                    "columns": columns,
                     "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0},
                 }
                 user_message = f"Dataset: {json.dumps(prompt_data, separators=(',', ':'), default=str)}. Analyze briefly."
@@ -215,46 +214,43 @@ class AnalysisExplainer:
             raw: str = completion.choices[0].message.content.strip()
             logging.debug("Raw LLM response (first 500 chars): %s", raw[:500])
 
-            # Aggressive markdown/code block stripping
+            # The model sometimes wraps the JSON in a ```json ... ``` code block.
+            # Strip that fence if present.
             if raw.startswith("```"):
-                # Extract content between triple backticks
                 parts = raw.split("```")
                 raw = parts[1] if len(parts) > 1 else raw
                 if raw.strip().startswith("json"):
-                    raw = raw.strip()[4:]
-            
+                    raw = raw.strip()[4:]  # drop the leading "json" language tag
+
             raw = raw.strip()
-            
-            # Handle common OXLO response issues
-            # Remove any control characters or extra whitespace
+
+            # Drop any stray control characters that would break json.loads.
             raw = raw.encode('utf-8', errors='ignore').decode('utf-8')
-            
-            # Try standard JSON parsing first
+
+            # First try to parse the whole reply as JSON.
             try:
                 insights: dict[str, Any] = json.loads(raw)
-                logging.info("Successfully parsed OXLO JSON response")
-                
-                # Check if response has meaningful insights
+                logging.info("Successfully parsed LLM JSON response")
+
+                # A valid-but-empty answer is useless — fall back to stats.
                 has_flags = bool(insights.get("quality_flags"))
                 has_insights = bool(insights.get("column_insights"))
                 has_steps = bool(insights.get("next_steps"))
-                
-                # If all insight fields are empty, use statistical fallback
                 if not has_flags and not has_insights and not has_steps:
-                    logging.warning("OXLO response has no insights. Using statistical analysis fallback.")
+                    logging.warning("LLM response has no insights. Using statistical analysis fallback.")
                     return self._build_insights_from_stats(analysis)
-                    
+
             except json.JSONDecodeError:
-                # If that fails, try to extract valid JSON from the response
-                # Look for the first { and last } and extract that substring
+                # Parsing failed — the model probably added text around the JSON.
+                # Grab the substring between the first { and the last }.
                 start_idx = raw.find('{')
                 end_idx = raw.rfind('}')
                 if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
                     raw = raw[start_idx:end_idx+1]
                     insights: dict[str, Any] = json.loads(raw)
-                    logging.info("Successfully extracted OXLO JSON from text")
+                    logging.info("Successfully extracted LLM JSON from text")
                 else:
-                    logging.warning("Could not find JSON in OXLO response. Using fallback insights.")
+                    logging.warning("Could not find JSON in LLM response. Using fallback insights.")
                     insights = self._build_insights_from_stats(analysis)
             
             logging.info("AI insights generated successfully.")

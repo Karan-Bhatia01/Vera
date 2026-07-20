@@ -19,6 +19,8 @@ from sklearn.preprocessing import (
     StandardScaler, OrdinalEncoder, OneHotEncoder, LabelEncoder,
 )
 from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
 
 from src.logger import logging
 
@@ -41,6 +43,18 @@ def build_splits(
     df.drop(columns=drop_cols, inplace=True)
     logging.info("Dropped columns: %s", drop_cols)
 
+    # Rows with a missing target can't be learned from or scored — drop them
+    # up front so they never reach train_test_split / model.fit().
+    missing_target = df[target_column].isna().sum()
+    if missing_target:
+        df = df[df[target_column].notna()].copy()
+        logging.warning("Dropped %d rows with a missing target value.", missing_target)
+    if df.empty:
+        raise ValueError(
+            f"Every row has a missing value in target column '{target_column}' — "
+            "nothing left to train on."
+        )
+
     X = df.drop(columns=[target_column])
     y = df[target_column].copy()
 
@@ -52,21 +66,43 @@ def build_splits(
 
     numeric_cols, ordinal_cols, onehot_cols, ordinal_categories = _assign_roles(X, plan)
 
+    if not (numeric_cols or ordinal_cols or onehot_cols):
+        raise ValueError(
+            "No usable feature columns remained after preprocessing — every column "
+            "was dropped (high-cardinality text, all-null, or only the target left). "
+            "Check the dataset and the feature plan's 'drop' list."
+        )
+
+    # Each branch imputes first so missing values never reach the model — the
+    # most common reason every model would otherwise fail to fit (NaN in X).
     transformers = []
     if numeric_cols:
-        transformers.append(("num", StandardScaler(), numeric_cols))
+        transformers.append((
+            "num",
+            Pipeline([
+                ("impute", SimpleImputer(strategy="median")),
+                ("scale", StandardScaler()),
+            ]),
+            numeric_cols,
+        ))
     if ordinal_cols:
         transformers.append((
             "ord",
-            OrdinalEncoder(categories=ordinal_categories,
-                           handle_unknown="use_encoded_value",
-                           unknown_value=-1, dtype=float),
+            Pipeline([
+                ("impute", SimpleImputer(strategy="most_frequent")),
+                ("encode", OrdinalEncoder(categories=ordinal_categories,
+                                          handle_unknown="use_encoded_value",
+                                          unknown_value=-1, dtype=float)),
+            ]),
             ordinal_cols,
         ))
     if onehot_cols:
         transformers.append((
             "ohe",
-            OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+            Pipeline([
+                ("impute", SimpleImputer(strategy="most_frequent")),
+                ("encode", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+            ]),
             onehot_cols,
         ))
     preprocessor = ColumnTransformer(transformers, remainder="drop")

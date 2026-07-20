@@ -33,6 +33,7 @@ def train_and_evaluate(
     A model that fails to fit is skipped (logged), never aborting the run.
     """
     results: dict[str, Any] = {}
+    failures: dict[str, str] = {}
     total = len(models) or 1
 
     for i, (name, model) in enumerate(models.items()):
@@ -53,7 +54,14 @@ def train_and_evaluate(
             }
             logging.info("Trained %s: %s", name, metrics)
         except Exception as exc:
-            logging.warning("Model %s failed: %s", name, exc)
+            failures[name] = f"{type(exc).__name__}: {exc}"
+            logging.warning("Model %s failed: %s", name, exc, exc_info=True)
+
+    if not results and failures:
+        # Surface the real reason instead of a generic "nothing trained" message.
+        # Failures are usually identical across models, so the distinct set is short.
+        reasons = "; ".join(sorted({f"{n} → {r}" for n, r in failures.items()}))
+        raise RuntimeError(f"All {len(failures)} candidate models failed to train. Reasons: {reasons}")
 
     return results
 
