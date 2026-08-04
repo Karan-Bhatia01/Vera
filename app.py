@@ -20,8 +20,7 @@ def create_app():
     from routes.analysis import analysis_bp
     from routes.eda      import eda_bp
     from routes.ml       import ml_bp
-    from routes.chat     import chat_bp
-
+ 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(upload_bp)
@@ -29,7 +28,6 @@ def create_app():
     app.register_blueprint(analysis_bp)
     app.register_blueprint(eda_bp)
     app.register_blueprint(ml_bp)
-    app.register_blueprint(chat_bp)
 
     return app
 

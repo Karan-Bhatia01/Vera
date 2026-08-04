@@ -88,19 +88,16 @@ class MLPipeline:
             rank_metric = "accuracy" if problem_type == "classification" else "r2"
             best_model = best_model_name(results, rank_metric)
 
-            progress(82, f"Explaining {best_model} with SHAP...")
-            shap_data = self._shap(results[best_model], X_train, X_test, feature_names, problem_type, best_model)
-
-            progress(92, "Saving to MongoDB...")
+            progress(90, "Finalizing results...")
             mongo_id = save_results(
                 self.db, self.filename, self.target_column, results,
-                problem_type, feature_plan, rank_metric, best_model, shap_data,
+                problem_type, feature_plan, rank_metric, best_model,
             )
 
             progress(100, "Pipeline complete!")
             logging.info("=== ML Pipeline complete. Best: %s ===", best_model)
             return self._response(
-                results, problem_type, feature_plan, best_model, rank_metric, mongo_id, shap_data
+                results, problem_type, feature_plan, best_model, rank_metric, mongo_id
             )
 
         except Exception as e:
@@ -125,22 +122,7 @@ class MLPipeline:
         logging.info("Agent selected %d models: %s", len(models), list(models))
         return models or all_models  # fall back to all if selection came back empty
 
-    @staticmethod
-    def _shap(best, X_train, X_test, feature_names, problem_type, best_model) -> dict:
-        try:
-            from src.components.shap_explainer import SHAPExplainer
-            explainer = SHAPExplainer(
-                model=best["model_object"], X_train=X_train, X_test=X_test,
-                feature_names=feature_names, problem_type=problem_type,
-            )
-            shap_data = explainer.run_all()
-            shap_data["model_name"] = best_model
-            return shap_data
-        except Exception as err:
-            logging.warning("SHAP skipped: %s", err)
-            return {}
-
-    def _response(self, results, problem_type, feature_plan, best_model, rank_metric, mongo_id, shap_data) -> dict:
+    def _response(self, results, problem_type, feature_plan, best_model, rank_metric, mongo_id) -> dict:
         # Strip the (non-serialisable) estimator objects; sort by primary metric.
         clean = {
             name: {"metrics": data["metrics"], "feature_importance": data.get("feature_importance")}
@@ -160,5 +142,4 @@ class MLPipeline:
             "best_model":    best_model,
             "rank_metric":   rank_metric,
             "mongo_doc_id":  mongo_id,
-            "shap":          shap_data,
         }

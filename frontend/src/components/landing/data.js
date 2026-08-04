@@ -26,7 +26,7 @@ export const pipelineSteps = [
   {
     n: "04",
     title: "Explain",
-    body: "SHAP-backed feature importance and a RAG assistant that answers questions about your own data.",
+    body: "Feature importance metrics and a RAG assistant that answers questions about your own data.",
   },
   {
     n: "05",

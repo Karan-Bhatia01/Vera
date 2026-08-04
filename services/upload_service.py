@@ -10,8 +10,8 @@ from src.exception import CustomException
 
 
 MAX_DATASETS_PER_USER = 3
-MAX_ROWS = 50_000
-MAX_COLUMNS = 20
+MAX_ROWS = 20_000
+MAX_COLUMNS = 15
 
 
 def _run_analysis_in_background(filename: str):

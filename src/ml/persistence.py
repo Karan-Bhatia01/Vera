@@ -25,7 +25,6 @@ def save_results(
     feature_plan: dict,
     rank_metric: str,
     best_model: str,
-    shap_data: dict | None = None,
 ) -> str:
     """No-op: ML model pickle files and ml_results document are no longer saved to MongoDB."""
     logging.info("ML run complete for '%s' (storage to MongoDB disabled).", filename)

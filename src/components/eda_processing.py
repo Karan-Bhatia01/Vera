@@ -189,12 +189,33 @@ class DataPreprocessing:
         try:
             numeric_cols     = df.select_dtypes(include="number").columns.tolist()
             categorical_cols = df.select_dtypes(exclude="number").columns.tolist()
+            
+            # ── Select Top Features ──
+            top_numeric = []
+            if numeric_cols:
+                if self.target_column in numeric_cols:
+                    # Sort by absolute correlation with target
+                    corrs = df[numeric_cols].corr()[self.target_column].abs().drop(self.target_column, errors="ignore")
+                    top_numeric = [self.target_column] + corrs.sort_values(ascending=False).head(4).index.tolist()
+                else:
+                    # Sort by variance
+                    var = df[numeric_cols].var().sort_values(ascending=False)
+                    top_numeric = var.head(5).index.tolist()
+
+            top_categorical = []
+            if categorical_cols:
+                # Rank categorical features by lowest cardinality > 1
+                cat_nunique = df[categorical_cols].nunique()
+                cat_nunique = cat_nunique[cat_nunique > 1]
+                top_categorical = cat_nunique.sort_values().head(3).index.tolist()
+
         except Exception as e:
             logging.warning("Could not determine column types: %s", e)
             return charts
 
-        # ── Univariate ─────────────────────────────────────────────────────
-        for col in numeric_cols:
+        # 1. Distributions (up to 4)
+        for col in top_numeric[:4]:
+            if len(charts) >= 10: break
             try:
                 title = f"Distribution — {col}"
                 fig, ax = plt.subplots(figsize=(7, 4))
@@ -206,7 +227,9 @@ class DataPreprocessing:
             finally:
                 plt.close("all")
 
-        for col in numeric_cols:
+        # 2. Boxplots (up to 2)
+        for col in top_numeric[:2]:
+            if len(charts) >= 10: break
             try:
                 title = f"Boxplot — {col}"
                 fig, ax = plt.subplots(figsize=(6, 4))
@@ -218,10 +241,12 @@ class DataPreprocessing:
             finally:
                 plt.close("all")
 
-        for col in categorical_cols[:6]:
+        # 3. Value Counts (up to 3)
+        for col in top_categorical:
+            if len(charts) >= 10: break
             try:
                 title = f"Value Counts — {col}"
-                vc = df[col].value_counts().head(15)
+                vc = df[col].value_counts().head(10)
                 fig, ax = plt.subplots(figsize=(8, 4))
                 sns.barplot(x=vc.index, y=vc.values, ax=ax,
                             hue=vc.index, palette="muted", legend=False)
@@ -233,12 +258,12 @@ class DataPreprocessing:
             finally:
                 plt.close("all")
 
-        # ── Bivariate ──────────────────────────────────────────────────────
-        if len(numeric_cols) >= 2:
+        # 4. Correlation Heatmap (1)
+        if len(top_numeric) >= 2 and len(charts) < 10:
             try:
                 title = "Correlation Heatmap"
-                corr  = df[numeric_cols].corr()
-                n     = len(numeric_cols)
+                corr  = df[top_numeric].corr()
+                n     = len(top_numeric)
                 fig, ax = plt.subplots(figsize=(max(6, n), max(5, n - 1)))
                 sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
                             linewidths=0.5, ax=ax, square=True)
@@ -249,14 +274,16 @@ class DataPreprocessing:
             finally:
                 plt.close("all")
 
-        if len(numeric_cols) >= 2:
-            corr_matrix = df[numeric_cols].corr().abs()
+        # 5. Scatter Plots (up to 2)
+        if len(top_numeric) >= 2:
+            corr_matrix = df[top_numeric].corr().abs()
             pairs = (
                 corr_matrix
                 .where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-                .stack().sort_values(ascending=False).head(3)
+                .stack().sort_values(ascending=False).head(2)
             )
             for (col_x, col_y), _ in pairs.items():
+                if len(charts) >= 10: break
                 try:
                     title = f"Scatter — {col_x} vs {col_y}"
                     hue   = self._valid_hue(df)
@@ -269,57 +296,5 @@ class DataPreprocessing:
                     logging.warning("Skipped '%s': %s", title, e)
                 finally:
                     plt.close("all")
-
-        if categorical_cols and numeric_cols:
-            try:
-                cat_col, num_col = categorical_cols[0], numeric_cols[0]
-                title = f"Grouped Bar — {cat_col} × {num_col}"
-                grp   = (df.groupby(cat_col)[num_col]
-                           .mean().sort_values(ascending=False).head(12))
-                fig, ax = plt.subplots(figsize=(8, 4))
-                sns.barplot(x=grp.index, y=grp.values, ax=ax,
-                            hue=grp.index, palette="Blues_d", legend=False)
-                ax.set_title(title); ax.set_xlabel(cat_col)
-                ax.set_ylabel(f"Mean {num_col}")
-                plt.xticks(rotation=35, ha="right"); plt.tight_layout()
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped grouped bar: %s", e)
-            finally:
-                plt.close("all")
-
-        # ── Trivariate ─────────────────────────────────────────────────────
-        if len(numeric_cols) >= 3:
-            try:
-                title     = "Pairplot"
-                pair_cols = numeric_cols[:5]
-                plot_df   = df[pair_cols].select_dtypes(include="number").dropna()
-                if not plot_df.empty:
-                    pplot = sns.pairplot(plot_df, hue=None, diag_kind="kde",
-                                         plot_kws={"alpha": 0.5})
-                    pplot.fig.suptitle(title, y=1.02)
-                    charts[title] = fig_to_b64(pplot.fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped 'Pairplot': %s", e)
-            finally:
-                plt.close("all")
-
-        if len(numeric_cols) >= 3:
-            try:
-                col_x, col_y, col_s = numeric_cols[0], numeric_cols[1], numeric_cols[2]
-                title  = f"Bubble — {col_x} / {col_y} / {col_s}"
-                sizes  = pd.to_numeric(df[col_s], errors="coerce").fillna(0)
-                scaled = (sizes - sizes.min()) / (sizes.max() - sizes.min() + 1e-9) * 400 + 20
-                fig, ax = plt.subplots(figsize=(8, 6))
-                sc = ax.scatter(df[col_x], df[col_y], s=scaled,
-                                alpha=0.5, c=scaled, cmap="viridis")
-                plt.colorbar(sc, ax=ax, label=col_s)
-                ax.set_xlabel(col_x); ax.set_ylabel(col_y); ax.set_title(title)
-                plt.tight_layout()
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped bubble chart: %s", e)
-            finally:
-                plt.close("all")
 
         return charts

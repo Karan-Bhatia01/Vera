@@ -40,7 +40,7 @@ export default function MLModelling() {
           <p className="text-2xl mb-3">🤖</p>
           <p className="font-semibold mb-2">Ready to train?</p>
           <p className="text-sm text-[#9a9a93] font-['JetBrains_Mono'] mb-6">
-            The agent will select the best models, train them, and explain results with SHAP.
+            The agent will select the best models, train them, and evaluate feature importance.
           </p>
           {startError && <p className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 font-['JetBrains_Mono'] text-xs text-red-400">✗ {startError}</p>}
           <button onClick={startML} disabled={starting}
@@ -132,12 +132,7 @@ export default function MLModelling() {
             </Card>
           )}
 
-          {result.shap?.summary_plot && (
-            <Card title={`SHAP — ${result.shap.model_name}`} className="mt-4">
-              <img src={`data:image/png;base64,${result.shap.summary_plot}`} alt="SHAP Summary" className="w-full rounded-md border border-white/10" />
-              {result.shap.force_plot && <img src={`data:image/png;base64,${result.shap.force_plot}`} alt="SHAP Force" className="mt-4 w-full rounded-md border border-white/10" />}
-            </Card>
-          )}
+
 
           <div className="mt-6 flex justify-center">
             <button onClick={startML} className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-semibold hover:border-white/30 transition-colors">

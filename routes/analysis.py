@@ -58,7 +58,7 @@ def _build_ai_insights(analysis: dict) -> dict:
         raw = call_llm(
             _SYSTEM_PROMPT,
             json.dumps(payload, default=str),
-            temperature=0.2,
+            temperature=0.4,
             model=os.environ.get("GROQ_INSIGHTS_MODEL", "llama-3.3-70b-versatile"),
             timeout=float(os.environ.get("GROQ_INSIGHTS_TIMEOUT", "45")),
             # The insights JSON has many sections; a small cap truncates it
@@ -183,9 +183,3 @@ def info_status(job_id):
     if result is None:
         return jsonify({"status": "error", "message": "Job not found"}), 404
     return jsonify(result), 200
-
-
-@analysis_bp.route("/api/shap/<model_id>", methods=["GET"])
-@require_auth
-def shap_analysis(model_id):
-    return jsonify({"message": "SHAP not connected yet", "model_id": model_id}), 200
