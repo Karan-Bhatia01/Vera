@@ -22,7 +22,7 @@ export default function ConnectionStatus() {
     };
 
     check();
-    const id = setInterval(check, 15000);
+    const id = setInterval(check, 20000);
     return () => {
       active = false;
       clearInterval(id);

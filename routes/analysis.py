@@ -165,19 +165,6 @@ def run_info():
         if not filename:
             return jsonify({"status": "error", "message": "filename required"}), 400
 
-        # Serve from Mongo only if the cached doc was produced by the CURRENT
-        # analysis (has the richer stats + AI sections). Older docs are missing
-        # these keys, so we fall through and re-run instead of serving stale data.
-        existing = get_dataset_insights(filename)
-        if existing and existing.get("ai_insights", {}).get("summary") and _insights_are_current(existing):
-            job_id = create_job()
-            update_job(job_id, status="completed", progress=100, message="Loaded from cache", result={
-                "analysis": existing.get("analysis", {}),
-                "unique": existing.get("unique", {}),
-                "ai_insights": existing.get("ai_insights", {}),
-            })
-            return jsonify({"status": "success", "info_job_id": job_id}), 200
-
         job_id = create_job()
         thread = threading.Thread(
             target=_run_info_analysis, args=(job_id, filename), daemon=True

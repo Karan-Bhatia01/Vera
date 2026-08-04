@@ -14,21 +14,15 @@ def stored_datasets():
     try:
         owner_email = request.user["email"]
         ingestion = DataIngestion()
-        # Every CSV the user has uploaded — this is the source of truth, so a
-        # freshly uploaded file shows up immediately, before it's analyzed.
         owned = ingestion.get_all_filenames(owner_email=owner_email)
-
-        # Enrich with stored-insights metadata (shape/summary/date) where the
-        # dataset has already been analyzed; unanalyzed files still appear.
-        insights_by_name = {d["filename"]: d for d in list_stored_datasets()}
 
         datasets = [
             {
                 "filename":  fname,
-                "shape":     insights_by_name.get(fname, {}).get("shape"),
-                "stored_at": insights_by_name.get(fname, {}).get("stored_at", ""),
-                "summary":   insights_by_name.get(fname, {}).get("summary", ""),
-                "analyzed":  fname in insights_by_name,
+                "shape":     None,
+                "stored_at": "",
+                "summary":   "",
+                "analyzed":  False,
             }
             for fname in owned
         ]

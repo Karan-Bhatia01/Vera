@@ -70,16 +70,6 @@ def handle_upload(file, owner_email: str):
 
         ingestion.store_file(file, owner_email=owner_email)
 
-        # Fire-and-forget: analysis runs in the background so the upload
-        # response isn't delayed by the LLM call. Data Info will show
-        # empty state for a few seconds until this finishes.
-        thread = threading.Thread(
-            target=_run_analysis_in_background,
-            args=(file.filename,),
-            daemon=True,
-        )
-        thread.start()
-
         return {
             "filename": file.filename,
             "rows": rows,

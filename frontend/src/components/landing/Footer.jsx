@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="mx-auto max-w-5xl flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between">
         <span className="font-bold text-[#c97539]">Vera Intelligence.</span>
         <p className="text-xs text-[#6e6e66]">
-          © 2026 Karan Bhatia. All rights reserved. · Powered by OXLO MODELS
+          © 2026 Karan Bhatia. All rights reserved.
         </p>
       </div>
     </footer>
