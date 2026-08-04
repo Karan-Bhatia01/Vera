@@ -87,65 +87,7 @@ class DataIngestion:
         logging.info("CSV final parse — shape=%s", best_df.shape)
         return best_df
 
-    def get_preview(self, filename: str = None):
-        """
-        Reads the latest uploaded CSV file (or a specific one by filename)
-        and returns first 5 rows + columns.
-        Returns (None, None) if no file exists or parsing fails.
-        """
-        try:
-            # Build query — only look at CSV files
-            query = {"filename": {"$regex": r"\.csv$", "$options": "i"}}
-            if filename:
-                query = {"filename": filename}
 
-            latest = self.fs.find(query).sort("uploadDate", -1).limit(1)
-
-            for file in latest:
-                try:
-                    file_bytes = file.read()
-                    df = self._read_csv_robust(file_bytes)
-                    logging.info(
-                        "Preview loaded — file=%s shape=%s",
-                        file.filename, df.shape,
-                    )
-                    return df.head().values.tolist(), df.columns.tolist()
-                except Exception as parse_err:
-                    logging.warning(
-                        "Could not parse '%s' for preview: %s",
-                        file.filename, parse_err,
-                    )
-                    return None, None
-
-            # No CSV files found at all
-            return None, None
-
-        except Exception as e:
-            logging.error("get_preview failed: %s", e)
-            return None, None
-
-        # Never crash the page — return gracefully
-
-    def get_file_by_name(self, filename: str) -> pd.DataFrame:
-        """
-        Fetch a specific file from GridFS by filename and return as DataFrame.
-        Raises FileNotFoundError if not found.
-        """
-        try:
-            grid_out = self.fs.find_one(
-                {"filename": filename},
-                sort=[("uploadDate", -1)],
-            )
-            if grid_out is None:
-                raise FileNotFoundError(f"File '{filename}' not found in GridFS.")
-            file_bytes = grid_out.read()
-            df = self._read_csv_robust(file_bytes)
-            logging.info("File '%s' loaded — shape=%s", filename, df.shape)
-            return df
-        except FileNotFoundError:
-            raise
-        except Exception as e:
-            raise CustomException(e, sys)
 
     def get_all_filenames(self, owner_email: str = None):
         """
@@ -162,13 +104,7 @@ class DataIngestion:
         except Exception as e:
             raise CustomException(e, sys)
 
-    def get_owner(self, filename: str):
-        """Return the owner_email tagged on a file, or None if untagged/not found."""
-        try:
-            doc = self.db.fs.files.find_one({"filename": filename}, {"owner_email": 1})
-            return doc.get("owner_email") if doc else None
-        except Exception as e:
-            raise CustomException(e, sys)
+
 
     def count_files_for_owner(self, owner_email: str) -> int:
         """Count how many CSV datasets a given user currently has stored."""
@@ -179,24 +115,4 @@ class DataIngestion:
             })
         except Exception as e:
             raise CustomException(e, sys)
-
-    def delete_file(self, filename: str) -> bool:
-        """
-        Delete all GridFS entries matching the given filename.
-        Returns True if at least one file was deleted, False if none found.
-        """
-        try:
-            files = list(self.db.fs.files.find({"filename": filename}))
-            if not files:
-                logging.warning(
-                    "Delete requested but '%s' not found in GridFS.", filename
-                )
-                return False
-            for f in files:
-                self.fs.delete(f["_id"])
-            logging.info(
-                "Deleted %d GridFS entry/entries for '%s'.", len(files), filename
-            )
-            return True
-        except Exception as e:
-            raise CustomException(e, sys)
+

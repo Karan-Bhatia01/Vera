@@ -24,7 +24,6 @@ from src.utils import (
     analyse_chart,
     empty_analysis,
 )
-from src.agents.missing_value_agent import decide_missing_value_strategy
 
 load_dotenv()
 
@@ -35,7 +34,7 @@ _VISION_API_KEY = os.getenv("GROQ_API_KEY", "")
 # Fast multimodal model for chart analysis. qwen3.6 is a *reasoning* model that
 # emits <think> blocks and is slow for this — Llama 4 Scout is vision-capable and
 # much quicker. Overridable via GROQ_VISION_MODEL.
-_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview")
 _CHART_DPI      = 72
 
 
@@ -84,16 +83,7 @@ class DataPreprocessing:
         return None
 
     # ── 1. Missing-value strategy (agent-based) ───────────────────────────────
-    def get_ai_insights(self) -> dict[str, str]:
-        """
-        Returns {column: fill_method} for columns with missing values,
-        decided by the missing value agent. Returns {} if no nulls exist
-        (no LLM/agent call needed in that case).
-        """
-        try:
-            return decide_missing_value_strategy(self.df)
-        except Exception as e:
-            raise CustomException(e, sys) from e
+
 
     # ── 2. Preprocessing ──────────────────────────────────────────────────────
     def preprocess_data(

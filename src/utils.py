@@ -5,13 +5,11 @@ import json
 import re
 import base64
 import textwrap
-import time
 from typing import Any
 
 import pandas as pd
 import gridfs
 from pymongo import MongoClient
-import openai
 
 from src.logger import logging
 from src.exception import CustomException
@@ -59,91 +57,6 @@ def load_dataframe_from_mongo(filename: str) -> pd.DataFrame:
         raise CustomException(e, sys)
 
 
-# ── LLM (OXLO) ────────────────────────────────────────────────────────────────
-
-def llm_agent(prompt: str, role: str, context: str) -> dict:
-    """
-    Send a structured prompt to OXLO and return the parsed JSON response.
-    Includes retry logic with exponential backoff for rate limits (429).
-
-    Returns
-    -------
-    dict with keys:
-        "response"  → the LLM's answer string
-        "metadata"  → role, original_query, context_summary
-    """
-    max_retries = 5
-    retry_delay = 1  # Start with 1 second, exponential backoff: 1s, 2s, 4s, 8s
-    
-    for attempt in range(max_retries):
-        try:
-            client = openai.OpenAI(
-                base_url="https://api.oxlo.ai/v1",
-                api_key=os.environ.get("OXLO_API_KEY")
-            )
-
-            structured_prompt = (
-                f"Act as {role} and respond only in JSON format.\n"
-                f"The context is: {context}\n"
-                f"The user query is: {prompt}\n\n"
-                "The JSON structure must always be:\n"
-                "{\n"
-                '    "response": "<your answer here>",\n'
-                '    "metadata": {\n'
-                '        "role": "<role>",\n'
-                '        "original_query": "<original user query>",\n'
-                '        "context_summary": "<short summary of context>"\n'
-                "    }\n"
-                "}"
-            )
-
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": structured_prompt}],
-                model="llama-3.2-3b",
-                max_tokens=4096,
-                temperature=0.3,
-            )
-
-            raw_content = chat_completion.choices[0].message.content
-
-            try:
-                # Try to parse JSON response
-                parsed = json.loads(raw_content)
-                return parsed
-            except json.JSONDecodeError:
-                # If JSON parsing fails, try to extract valid JSON from the response
-                start_idx = raw_content.find('{')
-                end_idx = raw_content.rfind('}')
-                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                    try:
-                        parsed = json.loads(raw_content[start_idx:end_idx+1])
-                        return parsed
-                    except json.JSONDecodeError:
-                        pass
-                
-                # If all JSON parsing fails, return wrapped response
-                return {
-                    "response": raw_content,
-                    "metadata": {
-                        "role": role,
-                        "original_query": prompt,
-                        "context_summary": context[:100],
-                    }
-                }
-
-        except openai.RateLimitError as e:
-            # Handle 429 rate limit error with exponential backoff
-            if attempt < max_retries - 1:
-                wait_time = retry_delay * (2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
-                logging.warning(f"Rate limited (429). Retrying in {wait_time} seconds... (Attempt {attempt + 1}/{max_retries})")
-                time.sleep(wait_time)
-                continue
-            else:
-                raise Exception(f"LLM Agent failed after {max_retries} retries: {e}")
-        
-        except Exception as e:
-            raise Exception(f"LLM Agent failed: {e}")
-
 
 # ── Chart utilities ────────────────────────────────────────────────────────────
 
@@ -152,7 +65,6 @@ def fig_to_b64(fig, dpi: int = 72) -> str:
     Render a matplotlib Figure to a base64-encoded PNG string.
     No disk I/O — uses BytesIO only.
     """
-    import matplotlib.pyplot as plt
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     buf.seek(0)
@@ -168,7 +80,7 @@ def analyse_chart(
 ) -> dict[str, Any]:
     """
     Send a base64 PNG to a vision-capable LLM endpoint via OpenAI client.
-    Provider-agnostic — works with any OpenAI-compatible API (Groq, Oxlo, etc.)
+    Provider-agnostic — works with any OpenAI-compatible API (e.g. Groq)
     based on the api_key/api_url/model passed in.
     Returns a structured JSON dict with keys:
         represents, key_findings, anomalies, recommendations

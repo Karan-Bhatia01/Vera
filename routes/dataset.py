@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.auth_decorator import require_auth
 from src.components.mongo_storage import (
-    list_stored_datasets,
     get_dataset_insights as get_insights_from_db,
 )
 from src.components.data_ingestion import DataIngestion

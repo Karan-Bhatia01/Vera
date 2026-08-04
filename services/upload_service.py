@@ -1,10 +1,8 @@
 import sys
-import threading
 
 import pandas as pd
 
 from src.components.data_ingestion import DataIngestion
-from src.components.llm import AnalysisExplainer
 from src.logger import logging
 from src.exception import CustomException
 
@@ -13,22 +11,6 @@ MAX_DATASETS_PER_USER = 3
 MAX_ROWS = 20_000
 MAX_COLUMNS = 15
 
-
-def _run_analysis_in_background(filename: str):
-    """
-    Runs AnalysisExplainer end-to-end (stats + LLM insights) and stores
-    the result to MongoDB via store_dataset_insights — same flow the
-    /api/info route would trigger, just fired automatically after upload
-    instead of waiting for the user to visit Data Info.
-    """
-    try:
-        explainer = AnalysisExplainer(filename)
-        explainer.run()
-        logging.info("Background analysis completed for '%s'", filename)
-    except Exception as e:
-        # Don't crash anything — Data Info will just show empty state
-        # and the user (or a future manual trigger) can retry.
-        logging.warning("Background analysis failed for '%s': %s", filename, e)
 
 
 def handle_upload(file, owner_email: str):

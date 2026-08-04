@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import os
 import sys
-import json
 from datetime import datetime, timezone
 from typing import Any
 
-from pymongo import MongoClient, DESCENDING
+from pymongo import MongoClient
 from src.logger import logging
 from src.exception import CustomException
 
@@ -54,33 +53,11 @@ def store_dataset_insights(
     return ""
 
 
-def store_chart_insight(
-    filename: str,
-    chart_title: str,
-    insight: dict[str, Any],
-) -> None:
-    """No-op: Chart insights are no longer stored in MongoDB."""
-    logging.info("Chart insight generated for '%s' / '%s' (storage disabled).", filename, chart_title)
-
 
 def get_dataset_insights(filename: str) -> dict[str, Any] | None:
     """No-op: Always returns None as dataset insights are not stored in MongoDB."""
     return None
 
-
-def list_stored_datasets() -> list[dict]:
-    """No-op: Always returns empty list as dataset insights are not stored in MongoDB."""
-    return []
-
-
-def set_target_column(filename: str, target_column: str) -> bool:
-    """No-op: Target column is no longer stored in MongoDB."""
-    return True
-
-
-def get_target_column(filename: str) -> str | None:
-    """No-op: Always returns None as target column is not stored in MongoDB."""
-    return None
 
 
 # ── User storage (merged from auth_storage.py) ────────────────────────────────
@@ -111,23 +88,4 @@ def get_user_by_email(email: str) -> dict[str, Any] | None:
     except Exception as e:
         raise CustomException(e, sys) from e
 
-
-# ── helpers ────────────────────────────────────────────────────────────────────
-
-def _safe_key(s: str) -> str:
-    """MongoDB field keys can't contain dots — replace with underscores."""
-    return s.replace(".", "_").replace("$", "_")
-
-
-def _json_default(obj):
-    """Fallback serialiser for numpy / tuple / other non-JSON types."""
-    import numpy as np
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, tuple):
-        return list(obj)
-    return str(obj)
+

@@ -86,16 +86,6 @@ def _build_ai_insights(analysis: dict) -> dict:
     except Exception:
         return _default_insights()
 
-def _insights_are_current(existing: dict) -> bool:
-    """True only if a cached Mongo doc has the current analysis/AI shape.
-
-    Bump the marker keys here whenever the stored shape changes so older
-    cached documents auto-invalidate and get recomputed on next request.
-    """
-    analysis = existing.get("analysis") or {}
-    ai = existing.get("ai_insights") or {}
-    return "numeric_stats" in analysis and "recommended_target" in ai
-
 
 def _default_insights():
     return {
