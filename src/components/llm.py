@@ -81,335 +81,118 @@ class AnalysisExplainer:
     # ── public methods ─────────────────────────
 
     def compute_analysis(self) -> dict[str, Any]:
-        """
-        Compute descriptive statistics using pandas only.
-        The LLM never performs calculations — all numbers originate here.
-
-        Returns
-        -------
-        dict with keys:
-            shape, columns, dtypes, null_values, null_percentages,
-            duplicate_rows, numeric_columns, categorical_columns,
-            describe, memory_usage_mb, unique_counts, sample_rows
-        """
+        """Compute descriptive statistics using pandas."""
         try:
             df = self.df
-            total_rows = len(df)
-
-            null_counts: dict[str, int] = df.isnull().sum().to_dict()
-            null_pct: dict[str, float] = {
-                col: round(count / total_rows * 100, 2)
-                for col, count in null_counts.items()
-            }
-
-            analysis: dict[str, Any] = {
+            nulls = df.isnull().sum()
+            
+            return {
                 "shape": df.shape,
-                "memory_usage_mb": round(
-                    df.memory_usage(deep=True).sum() / 1024 ** 2, 3
-                ),
+                "memory_usage_mb": round(df.memory_usage(deep=True).sum() / 1024 ** 2, 3),
                 "columns": df.columns.tolist(),
                 "dtypes": df.dtypes.astype(str).to_dict(),
                 "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
                 "categorical_columns": df.select_dtypes(exclude="number").columns.tolist(),
-                "null_values": null_counts,
-                "null_percentages": null_pct,
+                "null_values": nulls.to_dict(),
+                "null_percentages": {c: round(v / len(df) * 100, 2) for c, v in nulls.items()},
                 "duplicate_rows": int(df.duplicated().sum()),
                 "describe": df.describe(include="all").to_dict(),
                 "unique_counts": df.nunique().to_dict(),
                 "sample_rows": df.head(5).to_dict(orient="records"),
             }
-
-            logging.info("Dataset analysis computed successfully.")
-            return analysis
-
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    def unique_preview(
-        self, limit: int = _UNIQUE_PREVIEW_LIMIT
-    ) -> dict[str, dict[str, Any]]:
-        """
-        Return a preview of unique values for every column.
-
-        Returns
-        -------
-        dict: column → {"values": [...], "total_unique": int, "truncated": bool}
-        """
+    def unique_preview(self, limit: int = _UNIQUE_PREVIEW_LIMIT) -> dict[str, dict[str, Any]]:
+        """Return a preview of unique values for every column."""
         try:
-            preview: dict[str, dict[str, Any]] = {}
-            for col in self.df.columns:
-                unique_vals = self.df[col].dropna().unique()
-                total = len(unique_vals)
-                preview[col] = {
-                    "values": unique_vals[:limit].tolist(),
-                    "total_unique": total,
-                    "truncated": total > limit,
+            return {
+                col: {
+                    "values": (u := self.df[col].dropna().unique())[:limit].tolist(),
+                    "total_unique": len(u),
+                    "truncated": len(u) > limit,
                 }
-            logging.info("Unique value preview computed.")
-            return preview
+                for col in self.df.columns
+            }
         except Exception as e:
             raise CustomException(e, sys) from e
 
     def explain_analysis(self, analysis: dict[str, Any]) -> dict[str, Any]:
-        """
-        Send the pre-computed statistics to the LLM and return the insights.
-
-        The prompt must stay under a 50KB limit, so we first send only the
-        essential stats, and shrink further if that is still too big.
-        """
+        """Send pre-computed stats to the LLM to get structured insights."""
         try:
-            # Keep only the most useful stats to keep the prompt small.
-            essential_keys = {"shape", "columns", "null_values", "null_percentages"}
-            prompt_data = {k: v for k, v in analysis.items() if k in essential_keys}
-
-            # Add a small sample of describe() stats: first 5 columns, basic stats only.
+            prompt_data = {k: analysis[k] for k in ["shape", "columns", "null_values", "null_percentages"] if k in analysis}
             if "describe" in analysis:
-                describe_dict = analysis["describe"]
-                cols_to_include = list(describe_dict.keys())[:5]
-                
                 prompt_data["describe_sample"] = {
-                    col: {
-                        stat: round(val, 2) if isinstance(val, float) else val
-                        for stat, val in describe_dict[col].items()
-                        if stat in ("count", "mean", "std")
-                    }
-                    for col in cols_to_include
+                    c: {s: round(v, 2) if isinstance(v, float) else v for s, v in analysis["describe"][c].items() if s in ("count", "mean", "std")}
+                    for c in list(analysis["describe"].keys())[:5]
                 }
 
-            # Build a compact message (single-line JSON, no indentation).
-            user_message = (
-                "Analyze this dataset summary and respond ONLY with valid JSON:\n"
-                f"{json.dumps(prompt_data, separators=(',', ':'), default=str)}\n\n"
-                "REQUIRED JSON structure:\n"
-                '{"summary":"<2-3 sentences analyzing the dataset>","quality_flags":[{"column":"name","severity":"high/medium/low","issue":"label","detail":"explanation"}],"column_insights":[{"column":"name","insight":"interpretation"}],"next_steps":[{"title":"action","detail":"explanation"}],"uncertainty_notes":"text"}'
-            )
+            user_msg = f"Analyze this dataset summary and respond ONLY with valid JSON:\n{json.dumps(prompt_data, default=str)}\n\nREQUIRED JSON structure:\n" + '{"summary":"...","quality_flags":[{"column":"","severity":"","issue":"","detail":""}],"column_insights":[{"column":"","insight":""}],"next_steps":[{"title":"","detail":""}],"uncertainty_notes":""}'
             
-            payload_size = len(user_message.encode('utf-8'))
-            logging.info("Payload: %d bytes", payload_size)
+            if len(user_msg.encode('utf-8')) > 50000:
+                prompt_data = {"shape": analysis.get("shape"), "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0}}
+                user_msg = f"Dataset: {json.dumps(prompt_data, default=str)}. Analyze briefly."
 
-            # If it is still too big, shrink to the bare minimum: row/column
-            # counts plus only the columns that actually have missing values.
-            if payload_size > 50_000:
-                logging.warning("Payload still large (%d bytes). Final reduction.", payload_size)
-                rows, columns = analysis["shape"]  # shape is (rows, columns)
-                prompt_data = {
-                    "rows": rows,
-                    "columns": columns,
-                    "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0},
-                }
-                user_message = f"Dataset: {json.dumps(prompt_data, separators=(',', ':'), default=str)}. Analyze briefly."
-                payload_size = len(user_message.encode('utf-8'))
-                logging.info("Final payload: %d bytes", payload_size)
+            raw = self.client.chat.completions.create(
+                model=_LLM_MODEL, max_tokens=_LLM_MAX_TOKENS, temperature=0.3,
+                messages=[{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": user_msg}]
+            ).choices[0].message.content.strip()
 
-            completion = self.client.chat.completions.create(
-                model=_LLM_MODEL,
-                max_tokens=_LLM_MAX_TOKENS,
-                temperature=0.3,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message},
-                ],
-            )
-
-            raw: str = completion.choices[0].message.content.strip()
-            logging.debug("Raw LLM response (first 500 chars): %s", raw[:500])
-
-            # The model sometimes wraps the JSON in a ```json ... ``` code block.
-            # Strip that fence if present.
-            if raw.startswith("```"):
-                parts = raw.split("```")
-                raw = parts[1] if len(parts) > 1 else raw
-                if raw.strip().startswith("json"):
-                    raw = raw.strip()[4:]  # drop the leading "json" language tag
-
-            raw = raw.strip()
-
-            # Drop any stray control characters that would break json.loads.
-            raw = raw.encode('utf-8', errors='ignore').decode('utf-8')
-
-            # First try to parse the whole reply as JSON.
-            try:
-                insights: dict[str, Any] = json.loads(raw)
-                logging.info("Successfully parsed LLM JSON response")
-
-                # A valid-but-empty answer is useless — fall back to stats.
-                has_flags = bool(insights.get("quality_flags"))
-                has_insights = bool(insights.get("column_insights"))
-                has_steps = bool(insights.get("next_steps"))
-                if not has_flags and not has_insights and not has_steps:
-                    logging.warning("LLM response has no insights. Using statistical analysis fallback.")
-                    return self._build_insights_from_stats(analysis)
-
-            except json.JSONDecodeError:
-                # Parsing failed — the model probably added text around the JSON.
-                # Grab the substring between the first { and the last }.
-                start_idx = raw.find('{')
-                end_idx = raw.rfind('}')
-                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                    raw = raw[start_idx:end_idx+1]
-                    insights: dict[str, Any] = json.loads(raw)
-                    logging.info("Successfully extracted LLM JSON from text")
-                else:
-                    logging.warning("Could not find JSON in LLM response. Using fallback insights.")
-                    insights = self._build_insights_from_stats(analysis)
+            start, end = raw.find('{'), raw.rfind('}')
+            if start != -1 and end != -1:
+                insights = json.loads(raw[start:end+1])
+                if any(insights.get(k) for k in ["quality_flags", "column_insights", "next_steps"]):
+                    return self._validate_insights(insights)
             
-            logging.info("AI insights generated successfully.")
-            
-            # Validate and fix missing fields
-            insights = self._validate_insights(insights)
-            return insights
-
-        except json.JSONDecodeError as exc:
-            logging.warning("JSON parse error at position %d: %s. Building from stats instead.", 
-                          exc.pos, exc.msg)
+            logging.warning("LLM response lacked insights or parsing failed. Using fallback.")
             return self._build_insights_from_stats(analysis)
+            
         except Exception as e:
-            logging.error("Unexpected error in explain_analysis: %s", e)
+            logging.warning("Error in explain_analysis: %s", e)
             return self._build_insights_from_stats(analysis)
 
     def _build_insights_from_stats(self, analysis: dict[str, Any]) -> dict[str, Any]:
-        """
-        Build insights from statistical data when AI analysis fails.
-        Generates meaningful observations from the raw statistics.
-        """
+        """Builds fallback insights when AI analysis fails."""
         try:
-            shape = analysis.get("shape", (0, 0))
             nulls = analysis.get("null_percentages", {})
-            duplicates = analysis.get("duplicate_rows", 0)
+            dups = analysis.get("duplicate_rows", 0)
             
-            # Build summary
-            summary_parts = [f"Dataset contains {shape[0]} rows and {shape[1]} columns."]
-            if duplicates > 0:
-                summary_parts.append(f"Found {duplicates} duplicate rows.")
-            null_cols = [c for c, p in nulls.items() if p > 0]
-            if null_cols:
-                summary_parts.append(f"Columns with missing values: {', '.join(null_cols)}.")
+            summary = f"Dataset has {analysis.get('shape', (0,0))[0]} rows. "
+            if dups: summary += f"Found {dups} duplicates. "
             
-            # Build quality flags
-            quality_flags = []
-            for col, pct in nulls.items():
-                if pct > 10:
-                    quality_flags.append({
-                        "column": col,
-                        "severity": "high" if pct > 50 else "medium",
-                        "issue": "Missing values",
-                        "detail": f"{pct}% of values are missing in this column."
-                    })
+            flags = [{"column": c, "severity": "high" if p > 50 else "medium", "issue": "Missing values", "detail": f"{p}% missing"} for c, p in nulls.items() if p > 10]
+            if dups: flags.append({"column": "dataset", "severity": "medium", "issue": "Duplicate rows", "detail": f"Found {dups} duplicates."})
             
-            if duplicates > 0:
-                quality_flags.append({
-                    "column": "dataset",
-                    "severity": "medium",
-                    "issue": "Duplicate rows",
-                    "detail": f"Found {duplicates} duplicate rows that may need investigation."
-                })
+            insights = []
+            for col in analysis.get("numeric_columns", [])[:5]:
+                stats = analysis.get("describe", {}).get(col, {})
+                if stats:
+                    insights.append({"column": col, "insight": f"Mean: {stats.get('mean',0):.2f}, Std: {stats.get('std',0):.2f}"})
             
-            # Build column insights from describe stats
-            column_insights = []
-            describe = analysis.get("describe", {})
-            numeric_cols = analysis.get("numeric_columns", [])
-            
-            for col in numeric_cols[:5]:  # Limit to first 5
-                if col in describe:
-                    stats = describe[col]
-                    mean = stats.get("mean", 0)
-                    std = stats.get("std", 0)
-                    column_insights.append({
-                        "column": col,
-                        "insight": f"Mean: {mean:.2f}, Std Dev: {std:.2f}. " +
-                                 ("High variability detected." if std > mean else "Low variability.")
-                    })
-            
-            # Next steps
-            next_steps = [
-                {"title": "Review Data Quality", "detail": "Examine null values and duplicates to understand data integrity."},
-                {"title": "Prepare for Preprocessing", "detail": "Consider handling missing values and removing duplicates before modeling."},
-                {"title": "Explore Relationships", "detail": "Analyze correlations between numeric columns to identify patterns."}
-            ]
-            
-            result = {
-                "summary": " ".join(summary_parts),
-                "quality_flags": quality_flags,
-                "column_insights": column_insights,
-                "next_steps": next_steps,
-                "uncertainty_notes": "This analysis is based on statistical summaries. AI-powered insights were unavailable.",
+            return {
+                "summary": summary.strip(),
+                "quality_flags": flags,
+                "column_insights": insights,
+                "next_steps": [{"title": "Review Data Quality", "detail": "Examine nulls and duplicates."}],
+                "uncertainty_notes": "AI unavailable; based on raw stats.",
             }
-            
-            return result
-        except Exception as e:
-            logging.warning("Error building insights from stats: %s", e)
+        except Exception:
             return self._default_insights()
 
     def _validate_insights(self, insights: dict[str, Any]) -> dict[str, Any]:
-        """
-        Ensure all required keys exist and have correct types.
-        Provides sensible defaults for missing or malformed fields.
-        """
-        defaults = {
-            "summary": "Dataset analysis completed.",
-            "quality_flags": [],
-            "column_insights": [],
-            "next_steps": [],
-            "uncertainty_notes": "Standard statistical limitations apply.",
+        """Ensures all required keys exist and have correct types."""
+        i = insights
+        return {
+            "summary": str(i.get("summary", "Dataset analysis completed.")),
+            "quality_flags": [f for f in i.get("quality_flags", []) if isinstance(f, dict)],
+            "column_insights": [c for c in i.get("column_insights", []) if isinstance(c, dict)],
+            "next_steps": [s for s in i.get("next_steps", []) if isinstance(s, dict)],
+            "uncertainty_notes": str(i.get("uncertainty_notes", "Standard statistical limitations apply.")),
         }
-        
-        # Ensure all keys exist
-        for key, default_val in defaults.items():
-            if key not in insights:
-                insights[key] = default_val
-            elif insights[key] is None:
-                insights[key] = default_val
-        
-        # Fix types if needed
-        if not isinstance(insights["summary"], str):
-            insights["summary"] = str(insights["summary"])
-        
-        if not isinstance(insights["quality_flags"], list):
-            insights["quality_flags"] = []
-        else:
-            # Validate each flag structure
-            validated_flags = []
-            for flag in insights["quality_flags"]:
-                if isinstance(flag, dict) and all(k in flag for k in ["column", "severity", "issue", "detail"]):
-                    validated_flags.append(flag)
-            insights["quality_flags"] = validated_flags
-        
-        if not isinstance(insights["column_insights"], list):
-            insights["column_insights"] = []
-        else:
-            # Validate each insight structure
-            validated_insights = []
-            for insight in insights["column_insights"]:
-                if isinstance(insight, dict) and "column" in insight and "insight" in insight:
-                    validated_insights.append(insight)
-            insights["column_insights"] = validated_insights
-        
-        if not isinstance(insights["next_steps"], list):
-            insights["next_steps"] = []
-        else:
-            # Validate each step structure
-            validated_steps = []
-            for step in insights["next_steps"]:
-                if isinstance(step, dict) and "title" in step and "detail" in step:
-                    validated_steps.append(step)
-            insights["next_steps"] = validated_steps
-        
-        if not isinstance(insights["uncertainty_notes"], str):
-            insights["uncertainty_notes"] = str(insights["uncertainty_notes"])
-        
-        return insights
     
     def _default_insights(self) -> dict[str, Any]:
-        """Return a valid default response when parsing completely fails."""
-        return {
-            "summary": "Dataset analysis completed. Check the raw statistics above for details.",
-            "quality_flags": [],
-            "column_insights": [],
-            "next_steps": [
-                {"title": "Review Statistics", "detail": "Examine the analysis results shown above."}
-            ],
-            "uncertainty_notes": "AI analysis unavailable; refer to standard statistical measures.",
-        }
+        """Return a valid default response."""
+        return self._validate_insights({})
 
     def run(self) -> dict[str, Any]:
         """

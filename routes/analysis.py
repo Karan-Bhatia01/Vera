@@ -5,7 +5,7 @@ import time
 from flask import Blueprint, request, jsonify
 from services.auth_decorator import require_auth
 from src.components.data_info import DataInfo
-from src.components.mongo_storage import get_dataset_insights, store_dataset_insights
+from src.components.mongo_storage import store_dataset_insights
 from src.components.job_store import create_job, update_job, get_job_status
 from src.agents.llm_provider import call_llm, parse_json_from_response
 from src.logger import logging
@@ -28,10 +28,16 @@ You are a senior data analyst. Study the dataset summary and return ONLY valid J
 Be thorough and specific to THIS dataset. Provide column_insights for at least 5 meaningful columns, flag every genuine quality concern, and make recommendations concrete (name columns). Do NOT invent values that aren't supported by the summary. No markdown, no prose outside the JSON.
 """
 
+def _default_insights() -> dict:
+    return {
+        "summary": "Analysis completed.", "quality_flags": [], "column_insights": [],
+        "correlations": [], "recommended_target": {}, "feature_engineering": [],
+        "preprocessing": [], "next_steps": [], "uncertainty_notes": ""
+    }
+
 def _build_ai_insights(analysis: dict) -> dict:
     """Single LLM call to generate insights from pre-computed stats."""
     try:
-        # Compact payload — enough context for detailed insights, still small.
         payload = {
             "shape": analysis.get("shape"),
             "columns": analysis.get("columns", [])[:20],
@@ -42,96 +48,54 @@ def _build_ai_insights(analysis: dict) -> dict:
             "numeric_columns": analysis.get("numeric_columns", []),
             "categorical_columns": analysis.get("categorical_columns", []),
             "unique_counts": analysis.get("unique_counts", {}),
-            # Pre-computed stats so the LLM reasons over real numbers, not guesses.
             "numeric_stats": dict(list(analysis.get("numeric_stats", {}).items())[:10]),
             "correlations": analysis.get("correlations", [])[:8],
         }
-        # Top categories, capped so the prompt stays compact.
-        top_cats = analysis.get("top_categories", {})
-        if top_cats:
-            payload["top_categories"] = {
-                col: vals[:5] for col, vals in list(top_cats.items())[:8]
-            }
+        if top_cats := analysis.get("top_categories", {}):
+            payload["top_categories"] = {c: v[:5] for c, v in list(top_cats.items())[:8]}
 
-        # Plain JSON generation — use a fast chat model with a tight timeout,
-        # not the slow agentic compound model. Falls back to defaults on timeout.
         raw = call_llm(
-            _SYSTEM_PROMPT,
-            json.dumps(payload, default=str),
-            temperature=0.4,
+            _SYSTEM_PROMPT, json.dumps(payload, default=str), temperature=0.4,
             model=os.environ.get("GROQ_INSIGHTS_MODEL", "llama-3.3-70b-versatile"),
             timeout=float(os.environ.get("GROQ_INSIGHTS_TIMEOUT", "45")),
-            # The insights JSON has many sections; a small cap truncates it
-            # mid-object and the whole response fails to parse.
             max_tokens=int(os.environ.get("GROQ_INSIGHTS_MAX_TOKENS", "3000")),
         )
-        result = parse_json_from_response(raw)
-        if not isinstance(result, dict):
-            return _default_insights()
-        # Ensure every expected key exists with the right empty shape so the
-        # frontend can render unconditionally even if the model omits some.
-        _STR_KEYS  = {"summary", "uncertainty_notes"}
-        _DICT_KEYS = {"recommended_target"}
-        _LIST_KEYS = {
-            "quality_flags", "column_insights", "correlations",
-            "feature_engineering", "preprocessing", "next_steps",
+        
+        res = parse_json_from_response(raw)
+        if not isinstance(res, dict): return _default_insights()
+
+        return {
+            "summary": res.get("summary", ""),
+            "quality_flags": res.get("quality_flags", []),
+            "column_insights": res.get("column_insights", []),
+            "correlations": res.get("correlations", []),
+            "recommended_target": res.get("recommended_target", {}),
+            "feature_engineering": res.get("feature_engineering", []),
+            "preprocessing": res.get("preprocessing", []),
+            "next_steps": res.get("next_steps", []),
+            "uncertainty_notes": res.get("uncertainty_notes", ""),
         }
-        for k in _STR_KEYS:
-            result.setdefault(k, "")
-        for k in _DICT_KEYS:
-            result.setdefault(k, {})
-        for k in _LIST_KEYS:
-            result.setdefault(k, [])
-        return result
     except Exception:
         return _default_insights()
-
-
-def _default_insights():
-    return {
-        "summary": "Analysis completed.",
-        "quality_flags": [],
-        "column_insights": [],
-        "correlations": [],
-        "recommended_target": {},
-        "feature_engineering": [],
-        "preprocessing": [],
-        "next_steps": [],
-        "uncertainty_notes": "",
-    }
 
 def _run_info_analysis(job_id: str, filename: str):
     t0 = time.time()
     try:
-        update_job(job_id, status="running", progress=10, message="Computing dataset stats...")
-
-        # Step 1: compute stats (pure Python, no LLM)
-        from src.components.data_info import DataInfo
+        update_job(job_id, status="running", progress=10, message="Computing stats...")
         analyzer = DataInfo(filename)
         analysis = analyzer.dataset_analysis()
         unique = analyzer.get_unique_column_values()
-        logging.info("info job %s: stats computed in %.1fs", job_id, time.time() - t0)
 
-        update_job(job_id, progress=60, message="Generating AI insights...")
-
-        # Step 2: ONE LLM call (time-bounded; degrades to default insights)
-        t_llm = time.time()
+        update_job(job_id, progress=60, message="Generating insights...")
         ai_insights = _build_ai_insights(analysis)
-        logging.info("info job %s: insights in %.1fs", job_id, time.time() - t_llm)
 
-        # Step 3: store to Mongo
         store_dataset_insights(filename, analysis, ai_insights, unique)
-
-        result = {
-            "analysis": analysis,
-            "unique": unique,
-            "ai_insights": ai_insights,
-        }
+        result = {"analysis": analysis, "unique": unique, "ai_insights": ai_insights}
+        
         update_job(job_id, status="completed", progress=100, message="Done", result=result)
         logging.info("info job %s: completed in %.1fs", job_id, time.time() - t0)
-
     except Exception as e:
-        logging.exception("info job %s failed after %.1fs", job_id, time.time() - t0)
+        logging.exception("info job %s failed", job_id)
         update_job(job_id, status="failed", error=str(e))
 
 
@@ -140,9 +104,9 @@ def _run_info_analysis(job_id: str, filename: str):
 def dataset_info(filename):
     try:
         analyzer = DataInfo(filename)
-        result = analyzer.dataset_analysis()
-        result["unique_values"] = analyzer.get_unique_column_values()
-        return jsonify({"status": "success", "data": result}), 200
+        return jsonify({"status": "success", "data": {
+            **analyzer.dataset_analysis(), "unique_values": analyzer.get_unique_column_values()
+        }}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -151,17 +115,12 @@ def dataset_info(filename):
 @require_auth
 def run_info():
     try:
-        filename = request.json.get("filename")
-        if not filename:
+        if not (filename := request.json.get("filename")):
             return jsonify({"status": "error", "message": "filename required"}), 400
 
         job_id = create_job()
-        thread = threading.Thread(
-            target=_run_info_analysis, args=(job_id, filename), daemon=True
-        )
-        thread.start()
+        threading.Thread(target=_run_info_analysis, args=(job_id, filename), daemon=True).start()
         return jsonify({"status": "success", "info_job_id": job_id}), 200
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -169,7 +128,6 @@ def run_info():
 @analysis_bp.route("/api/pipeline_status/info/<job_id>", methods=["GET"])
 @require_auth
 def info_status(job_id):
-    result = get_job_status(job_id)
-    if result is None:
-        return jsonify({"status": "error", "message": "Job not found"}), 404
-    return jsonify(result), 200
+    if result := get_job_status(job_id):
+        return jsonify(result), 200
+    return jsonify({"status": "error", "message": "Job not found"}), 404

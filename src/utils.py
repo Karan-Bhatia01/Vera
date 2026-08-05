@@ -4,6 +4,7 @@ import os
 import json
 import re
 import base64
+import time
 import textwrap
 from typing import Any
 
@@ -167,6 +168,7 @@ def analyse_chart(
                     **empty_analysis(chart_title),
                     "error": f"API Error: {str(exc)[:100]}"
                 }
+            time.sleep(5)
 
 def parse_json_response(raw: str) -> dict:
     """
@@ -186,6 +188,10 @@ def parse_json_response(raw: str) -> dict:
             raw = raw.strip()[4:]
     
     raw = raw.strip()
+    
+    # Strip <think> blocks (used by reasoning models like Qwen)
+    if "<think>" in raw and "</think>" in raw:
+        raw = raw.split("</think>")[-1].strip()
     
     # Try direct JSON parsing
     try:

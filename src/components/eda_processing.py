@@ -31,10 +31,9 @@ sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
 
 _VISION_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 _VISION_API_KEY = os.getenv("GROQ_API_KEY", "")
-# Fast multimodal model for chart analysis. qwen3.6 is a *reasoning* model that
-# emits <think> blocks and is slow for this — Llama 4 Scout is vision-capable and
-# much quicker. Overridable via GROQ_VISION_MODEL.
-_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview")
+# Multimodal model for chart analysis. We use Qwen 3.6 27B since the Llama 3.2 Vision models 
+# were decommissioned. Overridable via GROQ_VISION_MODEL.
+_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.6-27b")
 _CHART_DPI      = 72
 
 
@@ -75,70 +74,68 @@ class DataPreprocessing:
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    # ── helpers ───────────────────────────────────────────────────────────────
+    # ── Helpers ───────────────────────────────────────────────────────────────
     def _valid_hue(self, df: pd.DataFrame) -> str | None:
+        """Returns the target column if it exists in the dataframe for color mapping."""
         tc = self.target_column
-        if isinstance(tc, str) and tc.strip() and tc in df.columns.tolist():
-            return tc
-        return None
+        return tc if isinstance(tc, str) and tc.strip() and tc in df.columns else None
+
+    def _save_chart(self, fig, title: str, charts: dict) -> None:
+        """Helper to convert a plot to base64 and save it, then clean up memory."""
+        charts[title] = fig_to_b64(fig, _CHART_DPI)
+        plt.close("all")
+
+    def _get_top_features(self, df: pd.DataFrame) -> tuple[list[str], list[str]]:
+        """Finds the most important numeric and categorical columns to plot."""
+        num_cols = df.select_dtypes(include="number").columns.tolist()
+        cat_cols = df.select_dtypes(exclude="number").columns.tolist()
+
+        top_num = []
+        if num_cols:
+            if self.target_column in num_cols:
+                corrs = df[num_cols].corr()[self.target_column].abs().drop(self.target_column, errors="ignore")
+                top_num = [self.target_column] + corrs.sort_values(ascending=False).head(4).index.tolist()
+            else:
+                top_num = df[num_cols].var().sort_values(ascending=False).head(5).index.tolist()
+
+        top_cat = []
+        if cat_cols:
+            cat_nunique = df[cat_cols].nunique()
+            top_cat = cat_nunique[cat_nunique > 1].sort_values().head(3).index.tolist()
+
+        return top_num, top_cat
 
     # ── 1. Missing-value strategy (agent-based) ───────────────────────────────
 
 
-    # ── 2. Preprocessing ──────────────────────────────────────────────────────
-    def preprocess_data(
-        self,
-        missing_value_strategy: dict[str, str] | None = None,
-    ) -> pd.DataFrame:
+    # ── Preprocessing ──────────────────────────────────────────────────────
+    def preprocess_data(self, strategy: dict[str, str] | None = None) -> pd.DataFrame:
+        """Cleans data: removes duplicates, drops columns, fills missing values."""
         try:
             df = self.df.copy()
-            logging.info("Preprocessing started.")
-
-            before = len(df)
             df.drop_duplicates(inplace=True)
-            logging.info("Duplicates removed: %d rows dropped.", before - len(df))
 
             if self.columns_to_drop:
-                df.drop(
-                    columns=[c for c in self.columns_to_drop if c in df.columns],
-                    inplace=True,
-                )
-                logging.info("Dropped columns: %s", self.columns_to_drop)
+                df.drop(columns=[c for c in self.columns_to_drop if c in df.columns], inplace=True)
 
-            if df.isnull().values.any():
-                strategy = missing_value_strategy or {}
+            if df.isnull().values.any() and strategy:
                 for col, method in strategy.items():
-                    if col not in df.columns:
-                        continue
+                    if col not in df.columns: continue
+                    
                     if method in ("mean", "median", "zero"):
                         df[col] = pd.to_numeric(df[col], errors="coerce")
-                    if method == "mean":
-                        fill_val = df[col].mean()
-                        df[col] = df[col].fillna(fill_val if pd.notna(fill_val) else 0)
-                    elif method == "median":
-                        fill_val = df[col].median()
-                        df[col] = df[col].fillna(fill_val if pd.notna(fill_val) else 0)
-                    elif method == "mode":
-                        mode_vals = df[col].mode()
-                        if not mode_vals.empty:
-                            df[col] = df[col].fillna(mode_vals.iloc[0])
-                    elif method == "ffill":
-                        df[col] = df[col].ffill()
-                    elif method == "bfill":
-                        df[col] = df[col].bfill()
-                    elif method == "zero":
-                        df[col] = df[col].fillna(0)
-                    elif method == "drop":
-                        df.dropna(subset=[col], inplace=True)
-                    else:
-                        df[col] = df[col].fillna(method)
-                logging.info("Missing values handled.")
-            else:
-                logging.info("No missing values — skipping fill step.")
+                        
+                    if method == "mean":     df[col] = df[col].fillna(df[col].mean() or 0)
+                    elif method == "median": df[col] = df[col].fillna(df[col].median() or 0)
+                    elif method == "mode":   df[col] = df[col].fillna(df[col].mode().iloc[0] if not df[col].mode().empty else 0)
+                    elif method == "ffill":  df[col] = df[col].ffill()
+                    elif method == "bfill":  df[col] = df[col].bfill()
+                    elif method == "zero":   df[col] = df[col].fillna(0)
+                    elif method == "drop":   df.dropna(subset=[col], inplace=True)
+                    else:                    df[col] = df[col].fillna(method)
 
             logging.info("Preprocessing complete. Final shape: %s", df.shape)
             return df
-
         except Exception as e:
             raise CustomException(e, sys) from e
 
@@ -175,116 +172,62 @@ class DataPreprocessing:
 
     # ── Chart builder ──────────────────────────────────────────────────────────
     def _build_all_charts(self, df: pd.DataFrame) -> dict[str, str]:
+        """Generates up to 10 meaningful charts using the top features."""
         charts: dict[str, str] = {}
         try:
-            numeric_cols     = df.select_dtypes(include="number").columns.tolist()
-            categorical_cols = df.select_dtypes(exclude="number").columns.tolist()
-            
-            # ── Select Top Features ──
-            top_numeric = []
-            if numeric_cols:
-                if self.target_column in numeric_cols:
-                    # Sort by absolute correlation with target
-                    corrs = df[numeric_cols].corr()[self.target_column].abs().drop(self.target_column, errors="ignore")
-                    top_numeric = [self.target_column] + corrs.sort_values(ascending=False).head(4).index.tolist()
-                else:
-                    # Sort by variance
-                    var = df[numeric_cols].var().sort_values(ascending=False)
-                    top_numeric = var.head(5).index.tolist()
+            top_num, top_cat = self._get_top_features(df)
 
-            top_categorical = []
-            if categorical_cols:
-                # Rank categorical features by lowest cardinality > 1
-                cat_nunique = df[categorical_cols].nunique()
-                cat_nunique = cat_nunique[cat_nunique > 1]
-                top_categorical = cat_nunique.sort_values().head(3).index.tolist()
-
-        except Exception as e:
-            logging.warning("Could not determine column types: %s", e)
-            return charts
-
-        # 1. Distributions (up to 4)
-        for col in top_numeric[:4]:
-            if len(charts) >= 10: break
-            try:
+            # 1. Distributions (up to 4)
+            for col in top_num[:4]:
+                if len(charts) >= 10: break
                 title = f"Distribution — {col}"
                 fig, ax = plt.subplots(figsize=(7, 4))
                 sns.histplot(df[col].dropna(), kde=True, ax=ax, color="#4C72B0")
                 ax.set_title(title); ax.set_xlabel(col)
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped '%s': %s", title, e)
-            finally:
-                plt.close("all")
+                self._save_chart(fig, title, charts)
 
-        # 2. Boxplots (up to 2)
-        for col in top_numeric[:2]:
-            if len(charts) >= 10: break
-            try:
+            # 2. Boxplots (up to 2)
+            for col in top_num[:2]:
+                if len(charts) >= 10: break
                 title = f"Boxplot — {col}"
                 fig, ax = plt.subplots(figsize=(6, 4))
                 sns.boxplot(y=df[col].dropna(), ax=ax, color="#55A868")
                 ax.set_title(title)
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped '%s': %s", title, e)
-            finally:
-                plt.close("all")
+                self._save_chart(fig, title, charts)
 
-        # 3. Value Counts (up to 3)
-        for col in top_categorical:
-            if len(charts) >= 10: break
-            try:
+            # 3. Value Counts (up to 3)
+            for col in top_cat:
+                if len(charts) >= 10: break
                 title = f"Value Counts — {col}"
                 vc = df[col].value_counts().head(10)
                 fig, ax = plt.subplots(figsize=(8, 4))
-                sns.barplot(x=vc.index, y=vc.values, ax=ax,
-                            hue=vc.index, palette="muted", legend=False)
+                sns.barplot(x=vc.index, y=vc.values, ax=ax, hue=vc.index, palette="muted", legend=False)
                 ax.set_title(title); ax.set_xlabel(col); ax.set_ylabel("Count")
                 plt.xticks(rotation=35, ha="right"); plt.tight_layout()
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped '%s': %s", title, e)
-            finally:
-                plt.close("all")
+                self._save_chart(fig, title, charts)
 
-        # 4. Correlation Heatmap (1)
-        if len(top_numeric) >= 2 and len(charts) < 10:
-            try:
+            # 4. Correlation Heatmap (1)
+            if len(top_num) >= 2 and len(charts) < 10:
                 title = "Correlation Heatmap"
-                corr  = df[top_numeric].corr()
-                n     = len(top_numeric)
-                fig, ax = plt.subplots(figsize=(max(6, n), max(5, n - 1)))
-                sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
-                            linewidths=0.5, ax=ax, square=True)
+                corr = df[top_num].corr()
+                fig, ax = plt.subplots(figsize=(max(6, len(top_num)), max(5, len(top_num) - 1)))
+                sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, ax=ax, square=True)
                 ax.set_title(title); plt.tight_layout()
-                charts[title] = fig_to_b64(fig, _CHART_DPI)
-            except Exception as e:
-                logging.warning("Skipped 'Correlation Heatmap': %s", e)
-            finally:
-                plt.close("all")
+                self._save_chart(fig, title, charts)
 
-        # 5. Scatter Plots (up to 2)
-        if len(top_numeric) >= 2:
-            corr_matrix = df[top_numeric].corr().abs()
-            pairs = (
-                corr_matrix
-                .where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-                .stack().sort_values(ascending=False).head(2)
-            )
-            for (col_x, col_y), _ in pairs.items():
-                if len(charts) >= 10: break
-                try:
+            # 5. Scatter Plots (up to 2)
+            if len(top_num) >= 2:
+                corr_matrix = df[top_num].corr().abs()
+                pairs = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().sort_values(ascending=False).head(2)
+                for (col_x, col_y), _ in pairs.items():
+                    if len(charts) >= 10: break
                     title = f"Scatter — {col_x} vs {col_y}"
-                    hue   = self._valid_hue(df)
                     fig, ax = plt.subplots(figsize=(6, 5))
-                    sns.scatterplot(data=df, x=col_x, y=col_y,
-                                    hue=hue, alpha=0.65, ax=ax)
+                    sns.scatterplot(data=df, x=col_x, y=col_y, hue=self._valid_hue(df), alpha=0.65, ax=ax)
                     ax.set_title(title); plt.tight_layout()
-                    charts[title] = fig_to_b64(fig, _CHART_DPI)
-                except Exception as e:
-                    logging.warning("Skipped '%s': %s", title, e)
-                finally:
-                    plt.close("all")
+                    self._save_chart(fig, title, charts)
+                    
+        except Exception as e:
+            logging.warning("Error building charts: %s", e)
 
         return charts
