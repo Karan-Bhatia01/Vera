@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePipeline } from "../../hooks/usePipeline";
+import { usePipeline } from "../../context/PipelineContext";
 
 export default function DataInfo() {
   const navigate = useNavigate();

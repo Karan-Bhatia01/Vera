@@ -1,11 +1,9 @@
 """
 dtype_utils.py
-==============
-Bulletproofing for messy real-world dtypes.
 
 Datasets loaded from CSV/Mongo sometimes carry pandas *extension* dtypes
 (StringDtype, nullable Int64/Float64, BooleanDtype, CategoricalDtype). scikit-learn
-and numpy don't understand those — e.g. `np.issubdtype(StringDtype, ...)` raises
+and numpy don't understand those raises
 "Cannot interpret '<StringDtype...>' as a data type", which used to crash the whole
 ML run. We normalize everything back to plain numpy dtypes up front so the rest of
 the pipeline only ever sees `object` / `float64` / `int64`.

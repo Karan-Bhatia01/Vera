@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
-import { usePipeline } from "../../hooks/usePipeline";
+import { usePipeline } from "../../context/PipelineContext";
 
 const MAX_DATASETS = 3;
 

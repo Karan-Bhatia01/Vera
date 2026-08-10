@@ -1,10 +1,5 @@
 """
-problem_type.py
-===============
 Decide whether the target column is a classification or regression problem.
-
-Uses pandas' own type predicates (never `np.issubdtype`, which throws on
-extension dtypes) so it's safe on any column that survived normalize_dtypes.
 """
 
 from __future__ import annotations
@@ -14,18 +9,18 @@ import pandas as pd
 from src.logger import logging
 
 # int columns with <= this many distinct values are treated as class labels
-CLASS_UNIQUE_MAX = 20
+CLASS_UNIQUE_MAX = 12
 
 
 def detect_problem_type(series: pd.Series) -> str:
     """Return 'classification' or 'regression' for the given target column.
 
     Rules (in order):
-      - bool / object / categorical        → classification
-      - float                              → regression
-      - int, <= CLASS_UNIQUE_MAX uniques   → classification
-      - int, more uniques                  → regression
-      - anything else                      → classification (safe default)
+      - bool / object / categorical        classification
+      - float                              regression
+      - int, <= CLASS_UNIQUE_MAX uniques   classification
+      - int, more uniques                  regression
+      - anything else                      classification (safe default)
     """
     dtype = series.dtype
     n_unique = int(series.nunique())

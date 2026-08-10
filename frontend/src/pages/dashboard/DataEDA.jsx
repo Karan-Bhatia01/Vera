@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
-import { usePipeline } from "../../hooks/usePipeline";
+import { usePipeline } from "../../context/PipelineContext";
 
 const PAGE_SIZE = 5;
 
