@@ -9,12 +9,10 @@ export default function Hero() {
           <br />
           Walk away with a
           <br />
-          <span className="text-[#c97539]">
-            trained model.
-          </span>
+          <span className="text-[var(--yellow)]">trained model.</span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-[#9a9a93]">
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--muted)]">
           Vera cleans, transforms, and trains over 10 models in parallel,
           delivering enterprise-grade ML insights without the complexity.
         </p>
@@ -23,13 +21,13 @@ export default function Hero() {
           <Link
             to="#"
             onClick={(e) => e.preventDefault()}
-            className="rounded-full bg-[#b56126] px-7 py-3 font-semibold text-[#0d1117]"
+            className="rounded-full bg-[var(--blue)] text-[var(--bg)] py-3 px-7 font-semibold"
           >
             Get Started Free →
           </Link>
           <a
             href="#pipeline"
-            className="rounded-full border border-white/15 px-7 py-3 font-semibold text-[#f0ece2] hover:border-white/30 transition-colors"
+            className="rounded-full border border-[var(--line)] text-[var(--text)] px-7 py-3 font-semibold hover:bg-[var(--line)] transition-colors"
           >
             Watch the Pipeline
           </a>

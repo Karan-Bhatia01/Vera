@@ -15,11 +15,11 @@ export default function Features() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm"
+              className="rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-6 backdrop-blur-sm"
             >
               <div className="text-3xl">{f.icon}</div>
               <h3 className="mt-4 text-lg font-bold">{f.title}</h3>
-              <p className="mt-2 text-sm text-[#9a9a93]">{f.body}</p>
+              <p className="mt-2 text-sm text-[var(--muted)]">{f.body}</p>
             </div>
           ))}
         </div>

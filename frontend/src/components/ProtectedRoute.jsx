@@ -36,12 +36,15 @@ export default function ProtectedRoute({ children }) {
   const location = useLocation();
   // Resolve the instant client check synchronously: no/expired token → denied
   // up front; otherwise "checking" until the server confirms.
-  const [status, setStatus] = useState(() => (hasUnexpiredToken() ? "checking" : "denied"));
+  const [status, setStatus] = useState(() =>
+    hasUnexpiredToken() ? "checking" : "denied",
+  );
 
   useEffect(() => {
     if (status !== "checking") return;
     let active = true;
-    api.get("/api/me")
+    api
+      .get("/api/me")
       .then(() => active && setStatus("ok"))
       .catch(() => {
         // 401/expired/forged → drop creds and bounce to login.
@@ -49,7 +52,9 @@ export default function ProtectedRoute({ children }) {
         localStorage.removeItem("email");
         if (active) setStatus("denied");
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [status]);
 
   if (status === "denied") {

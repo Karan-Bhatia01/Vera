@@ -10,7 +10,7 @@ import Footer from "./landing/Footer";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#f0ece2] font-['Space_Grotesk'] relative">
+    <div className="min-h-screen relative">
       <Background />
       <ConnectionStatus />
       <div className="relative z-10">

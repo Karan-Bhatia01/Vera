@@ -10,7 +10,8 @@ const api = axios.create({
 });
 
 // Attach the token to every outgoing request, if one exists.
-api.interceptors.request.use((config) => { // Intercetors are middlemen that run before every request or after every response 
+api.interceptors.request.use((config) => {
+  // Intercetors are middlemen that run before every request or after every response
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -31,7 +32,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

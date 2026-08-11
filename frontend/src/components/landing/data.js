@@ -1,4 +1,8 @@
-export const navLinks = ["Home", "Engine", "Features"];
+export const navLinks = [
+  { label: "Home", href: "/#" },
+  { label: "Engine", href: "/#pipeline" },
+  { label: "Features", href: "/#features" },
+];
 
 export const stats = [
   { value: "9", label: "STAGES" },

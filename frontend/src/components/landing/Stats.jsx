@@ -7,7 +7,7 @@ export default function Stats() {
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-6 text-center backdrop-blur-sm"
+            className="rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-6 text-center backdrop-blur-sm"
           >
             <div className="text-3xl font-extrabold">{s.value}</div>
             <div className="mt-1 font-['JetBrains_Mono'] text-[10px] tracking-widest text-[#6e6e66]">

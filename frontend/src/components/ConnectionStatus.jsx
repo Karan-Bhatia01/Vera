@@ -32,7 +32,7 @@ export default function ConnectionStatus() {
   if (!connected) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-medium text-[#f0ece2] shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+    <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-2)]/90 px-4 py-1.5 text-sm font-medium text-[var(--text)] shadow-xl backdrop-blur-md">
       <span className="relative flex h-2 w-2">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />

@@ -10,7 +10,14 @@ import DataEDA from "./pages/dashboard/DataEDA";
 import MLModelling from "./pages/dashboard/MLModelling";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+import { useEffect } from "react";
+
 function App() {
+  useEffect(() => {
+    const theme = localStorage.getItem("app-theme") || "dark";
+    document.documentElement.dataset.theme = theme;
+  }, []);
+
   return (
     <Routes>
       {/* Public */}
@@ -19,15 +26,18 @@ function App() {
       <Route path="/signup" element={<Signup />} />
 
       {/* Require a valid login */}
-      <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
       <Route
-        path="/dashboard"
-        element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
       >
-        <Route index element={<DashboardHome />} />
-        <Route path="info" element={<DataInfo />} />
-        <Route path="eda" element={<DataEDA />} />
-        <Route path="ml" element={<MLModelling />} />
+        <Route path="/upload" element={<Upload />} />
+        <Route path="/dashboard" element={<DashboardHome />} />
+        <Route path="/dashboard/info" element={<DataInfo />} />
+        <Route path="/dashboard/eda" element={<DataEDA />} />
+        <Route path="/dashboard/ml" element={<MLModelling />} />
       </Route>
     </Routes>
   );
