@@ -133,22 +133,29 @@ class AnalysisExplainer:
                 prompt_data = {"shape": analysis.get("shape"), "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0}}
                 user_msg = f"Dataset: {json.dumps(prompt_data, default=str)}. Analyze briefly."
 
-            raw = self.client.chat.completions.create(
-                model=_LLM_MODEL, max_tokens=_LLM_MAX_TOKENS, temperature=0.3,
-                messages=[{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": user_msg}]
-            ).choices[0].message.content.strip()
+            import time
+            for attempt in range(1, 6):
+                try:
+                    raw = self.client.chat.completions.create(
+                        model=_LLM_MODEL, max_tokens=_LLM_MAX_TOKENS, temperature=0.3,
+                        messages=[{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": user_msg}]
+                    ).choices[0].message.content.strip()
 
-            start, end = raw.find('{'), raw.rfind('}')
-            if start != -1 and end != -1:
-                insights = json.loads(raw[start:end+1])
-                if any(insights.get(k) for k in ["quality_flags", "column_insights", "next_steps"]):
-                    return self._validate_insights(insights)
+                    start, end = raw.find('{'), raw.rfind('}')
+                    if start != -1 and end != -1:
+                        insights = json.loads(raw[start:end+1])
+                        if any(insights.get(k) for k in ["quality_flags", "column_insights", "next_steps"]):
+                            return self._validate_insights(insights)
+                    
+                    logging.warning("LLM response lacked insights or parsing failed. Using fallback.")
+                    return self._build_insights_from_stats(analysis)
+
+                except Exception as e:
+                    logging.warning("Error in explain_analysis attempt %d: %s", attempt, e)
+                    if attempt == 5:
+                        return self._build_insights_from_stats(analysis)
+                    time.sleep(5 * attempt)
             
-            logging.warning("LLM response lacked insights or parsing failed. Using fallback.")
-            return self._build_insights_from_stats(analysis)
-            
-        except Exception as e:
-            logging.warning("Error in explain_analysis: %s", e)
             return self._build_insights_from_stats(analysis)
 
     def _build_insights_from_stats(self, analysis: dict[str, Any]) -> dict[str, Any]:

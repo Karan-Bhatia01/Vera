@@ -140,17 +140,17 @@ def analyse_chart(
         ]},
     ]
 
-    # Retry up to 2 times on failure
-    for attempt in range(1, 3):
+    # Retry up to 5 times on failure with exponential backoff
+    for attempt in range(1, 6):
         try:
             client = openai.OpenAI(
                 base_url=base_url,
                 api_key=api_key,
-                timeout=45,
+                timeout=90,
             )
             response = client.chat.completions.create(
                 model=model,
-                max_tokens=1024,
+                max_tokens=4096,
                 temperature=0.3,
                 messages=messages,
             )
@@ -163,12 +163,13 @@ def analyse_chart(
                 "Vision API attempt %d failed for '%s': %s",
                 attempt, chart_title, exc,
             )
-            if attempt == 2:
+            if attempt == 5:
                 return {
                     **empty_analysis(chart_title),
                     "error": f"API Error: {str(exc)[:100]}"
                 }
-            time.sleep(5)
+            # Exponential backoff: 5s, 10s, 15s, 20s
+            time.sleep(5 * attempt)
 
 def parse_json_response(raw: str) -> dict:
     """

@@ -1,7 +1,8 @@
 import threading
 from flask import Blueprint, request, jsonify
 from services.auth_decorator import require_auth
-from src.components.eda_processing import DataPreprocessing
+from src.components.eda_processing import DataPreprocessing, _VISION_API_KEY, _VISION_API_URL, _VISION_MODEL
+from src.utils import analyse_chart
 from src.components.job_store import create_job, update_job, get_job_status
 from src.agents.missing_value_agent import decide_missing_value_strategy
 from src.logger import logging
@@ -66,11 +67,13 @@ def eda_status(job_id):
 def analyse_chart_route():
     try:
         data = request.json
-        processor = DataPreprocessing(
-            filename=data.get("filename"),
-            target_column=data.get("target_column", ""),
+        result = analyse_chart(
+            data.get("image_b64"),
+            data.get("chart_title"),
+            _VISION_API_KEY,
+            _VISION_API_URL,
+            _VISION_MODEL
         )
-        result = processor.analyse_single(data.get("image_b64"), data.get("chart_title"))
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

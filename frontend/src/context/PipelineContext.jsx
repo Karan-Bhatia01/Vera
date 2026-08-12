@@ -145,8 +145,9 @@ export function PipelineProvider({ children }) {
       stop();
       setPolling(true);
       let attempts = 0;
-      intervalRef.current = setInterval(async () => {
-        if (++attempts > 120) {
+
+      const doPoll = async () => {
+        if (++attempts > 120 || !readJobs()) {
           stop();
           return;
         }
@@ -164,7 +165,10 @@ export function PipelineProvider({ children }) {
             stop();
           }
         }
-      }, 3000);
+      };
+
+      doPoll();
+      intervalRef.current = setInterval(doPoll, 3000);
     },
     [filename, stop],
   );
