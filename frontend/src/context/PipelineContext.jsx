@@ -49,6 +49,12 @@ export function PipelineProvider({ children }) {
   const [insightsError, setInsightsError] = useState("");
   const loadedRef = useRef({});
 
+  // Global state for EDA charts AI Analysis
+  const [chartAnalyses, setChartAnalyses] = useState({});
+  const [activeChartAnalysis, setActiveChartAnalysis] = useState(null);
+
+  const [jobUpdate, setJobUpdate] = useState(0);
+
   const intervalRef = useRef(null);
   const cancelledRef = useRef(false);
   const doneRef = useRef({ info: true, eda: true, ml: true });
@@ -129,7 +135,8 @@ export function PipelineProvider({ children }) {
       cancelledRef.current = true;
       stop();
     };
-  }, [filename, stop]);
+  }, [filename, stop, jobUpdate]);
+
 
   // key is the full storage key, e.g. "eda_job_id" / "ml_job_id".
   const addJob = useCallback(
@@ -142,35 +149,12 @@ export function PipelineProvider({ children }) {
 
       doneRef.current[shortKey] = false;
       setGone((g) => (g[shortKey] ? { ...g, [shortKey]: false } : g));
-      stop();
-      setPolling(true);
-      let attempts = 0;
-
-      const doPoll = async () => {
-        if (++attempts > 120 || !readJobs()) {
-          stop();
-          return;
-        }
-        try {
-          const r = await api.get(`/api/pipeline_status/${shortKey}/${jobId}`);
-          setterFor(shortKey)(r.data);
-          if (DONE.includes(r.data.status)) {
-            doneRef.current[shortKey] = true;
-            stop();
-          }
-        } catch (e) {
-          if (e.response?.status === 404) {
-            dropStaleJob(key);
-            setGone((g) => ({ ...g, [shortKey]: true }));
-            stop();
-          }
-        }
-      };
-
-      doPoll();
-      intervalRef.current = setInterval(doPoll, 3000);
+      setterFor(shortKey)({ status: "queued" });
+      
+      // Trigger the main useEffect to restart polling for ALL active jobs
+      setJobUpdate((u) => u + 1);
     },
-    [filename, stop],
+    [filename],
   );
 
   const clearJobs = useCallback(() => {
@@ -221,6 +205,10 @@ export function PipelineProvider({ children }) {
     insightsLoading,
     insightsError,
     loadInsights,
+    chartAnalyses,
+    setChartAnalyses,
+    activeChartAnalysis,
+    setActiveChartAnalysis,
   };
 
   return (

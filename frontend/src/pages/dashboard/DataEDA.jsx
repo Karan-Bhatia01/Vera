@@ -90,25 +90,33 @@ export default function DataEDA() {
 }
 
 function ChartCard({ title, imageB64, filename }) {
-  const [analysis, setAnalysis] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const { chartAnalyses, setChartAnalyses, activeChartAnalysis, setActiveChartAnalysis } = usePipeline();
+
+  const analysisState = chartAnalyses[title] || {};
+  const analysis = analysisState.data;
+  const err = analysisState.error || "";
+  const loading = activeChartAnalysis === title;
+  const anyLoading = activeChartAnalysis !== null;
 
   const requestInsights = async () => {
-    setLoading(true);
-    setErr("");
+    setActiveChartAnalysis(title);
+    setChartAnalyses((prev) => ({ ...prev, [title]: { data: null, error: "" } }));
     try {
       const res = await api.post("/api/analyse_chart", {
         filename,
         image_b64: imageB64,
         chart_title: title,
       });
-      if (res.data.error) setErr(res.data.error);
-      else setAnalysis(res.data);
+      if (res.data.error) {
+        setChartAnalyses((prev) => ({ ...prev, [title]: { data: null, error: res.data.error } }));
+      } else {
+        setChartAnalyses((prev) => ({ ...prev, [title]: { data: res.data, error: "" } }));
+      }
     } catch (e) {
-      setErr(e.response?.data?.error || "Analysis unavailable");
+      const errorMsg = e.response?.data?.error || "Analysis unavailable";
+      setChartAnalyses((prev) => ({ ...prev, [title]: { data: null, error: errorMsg } }));
     } finally {
-      setLoading(false);
+      setActiveChartAnalysis(null);
     }
   };
 
@@ -128,11 +136,13 @@ function ChartCard({ title, imageB64, filename }) {
       <div className="border-t border-[var(--line)] p-4">
         <button
           onClick={requestInsights}
-          disabled={loading || !!analysis}
+          disabled={anyLoading || !!analysis}
           className={`w-full rounded-md py-2 text-sm font-semibold border transition-colors ${
             analysis
               ? "border-[var(--line)] text-[var(--muted)] cursor-default"
-              : "border-[var(--line)] hover:border-[var(--line)]"
+              : anyLoading && !loading
+                ? "border-[var(--line)] text-[var(--muted)] opacity-50 cursor-not-allowed"
+                : "border-[var(--line)] hover:border-[var(--line)]"
           }`}
         >
           {loading ? "Analysing…" : analysis ? "✓ Analysed" : "✦ AI Insights"}
