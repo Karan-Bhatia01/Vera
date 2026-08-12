@@ -21,3 +21,9 @@ PyJWT
 langchain
 langchain-groq
 langchain-core
+
+
+crewai
+pydantic
+groq
+langchain-google-genai

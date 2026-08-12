@@ -16,30 +16,11 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-from pymongo import MongoClient
 from src.logger import logging
 from src.exception import CustomException
+from src.core.connections import get_db
 
-_MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 _DB_NAME   = "clarityAI_database"
-
-
-_client: MongoClient | None = None
-
-
-def get_db():
-    """Return the shared database handle.
-
-    A single MongoClient is reused across the process (it is internally
-    pooled and thread-safe). Opening a new client per call leaked sockets
-    and monitor threads, and — with no server-selection timeout — let
-    requests hang indefinitely when Mongo was unreachable. The timeout
-    makes those calls fail fast instead.
-    """
-    global _client
-    if _client is None:
-        _client = MongoClient(_MONGO_URL, serverSelectionTimeoutMS=3000)
-    return _client[_DB_NAME]
 
 
 def store_dataset_insights(
@@ -48,15 +29,45 @@ def store_dataset_insights(
     ai_insights: dict[str, Any],
     unique: dict[str, Any] | None = None,
 ) -> str:
-    """No-op: Dataset insights are no longer stored in MongoDB."""
-    logging.info("Dataset insights generated for '%s' (storage disabled).", filename)
-    return ""
-
+    """Store dataset stats and AI insights in MongoDB."""
+    try:
+        db = get_db()
+        collection = db["dataset_insights"]
+        
+        doc = {
+            "filename": filename,
+            "analysis": analysis,
+            "ai_insights": ai_insights,
+            "unique": unique or {},
+            "updated_at": datetime.now(timezone.utc),
+        }
+        
+        # Upsert the document based on filename
+        result = collection.update_one(
+            {"filename": filename},
+            {"$set": doc},
+            upsert=True
+        )
+        
+        logging.info("Dataset insights stored for '%s'.", filename)
+        return str(result.upserted_id) if result.upserted_id else "updated"
+    except Exception as e:
+        logging.error("Failed to store dataset insights for '%s': %s", filename, e)
+        return ""
 
 
 def get_dataset_insights(filename: str) -> dict[str, Any] | None:
-    """No-op: Always returns None as dataset insights are not stored in MongoDB."""
-    return None
+    """Retrieve stored dataset insights from MongoDB."""
+    try:
+        db = get_db()
+        collection = db["dataset_insights"]
+        doc = collection.find_one({"filename": filename})
+        if doc and "_id" in doc:
+            doc["_id"] = str(doc["_id"])
+        return doc
+    except Exception as e:
+        logging.error("Failed to retrieve dataset insights for '%s': %s", filename, e)
+        return None
 
 
 

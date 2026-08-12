@@ -16,8 +16,7 @@ import sys
 from collections import Counter
 from typing import Any, Callable
 
-from pymongo import MongoClient
-
+from src.core.connections import get_db
 from src.logger import logging
 from src.exception import CustomException
 from src.utils import load_dataframe_from_mongo
@@ -31,8 +30,6 @@ from src.ml.preprocessing import build_splits
 from src.ml.training import train_and_evaluate, best_model_name
 from src.ml.persistence import save_results
 
-_MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-_DB_NAME = "clarityAI_database"
 
 
 class MLPipeline:
@@ -42,7 +39,7 @@ class MLPipeline:
         try:
             self.filename = filename
             self.target_column = target_column
-            self.db = MongoClient(_MONGO_URL)[_DB_NAME]
+            self.db = get_db()
             # normalize_dtypes up front so no downstream step ever meets an
             # extension dtype (StringDtype/Int64) that numpy/sklearn can't read.
             self.df = normalize_dtypes(load_dataframe_from_mongo(filename))

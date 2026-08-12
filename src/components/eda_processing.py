@@ -12,8 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pymongo import MongoClient
-import gridfs
+from src.core.connections import get_db, get_gridfs
 from dotenv import load_dotenv
 
 from src.logger import logging
@@ -28,13 +27,6 @@ from src.utils import (
 load_dotenv()
 
 sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
-
-_VISION_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-_VISION_API_KEY = os.getenv("GROQ_API_KEY", "")
-# Multimodal model for chart analysis. We use Qwen 3.6 27B since the Llama 3.2 Vision models 
-# were decommissioned. Overridable via GROQ_VISION_MODEL.
-_VISION_MODEL   = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.6-27b")
-_CHART_DPI      = 72
 
 
 class DataPreprocessing:
@@ -55,18 +47,14 @@ class DataPreprocessing:
         filename: str,
         target_column: str,
         columns_to_drop: list[str] | None = None,
-        vision_api_key: str = "",
     ) -> None:
         try:
             self.filename        = filename
             self.target_column   = target_column
             self.columns_to_drop = columns_to_drop or []
-            self._vision_key     = vision_api_key or _VISION_API_KEY
 
-            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-            client  = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
-            self.db = client["clarityAI_database"]
-            self.fs = gridfs.GridFS(self.db)
+            self.db = get_db()
+            self.fs = get_gridfs()
 
             self.df = load_dataframe_from_mongo(filename)
             logging.info("DataPreprocessing loaded '%s' — shape %s", filename, self.df.shape)
@@ -82,8 +70,8 @@ class DataPreprocessing:
 
     def _save_chart(self, fig, title: str, charts: dict) -> None:
         """Helper to convert a plot to base64 and save it, then clean up memory."""
-        charts[title] = fig_to_b64(fig, _CHART_DPI)
-        plt.close("all")
+        charts[title] = fig_to_b64(fig)
+        plt.close(fig)
 
     def _get_top_features(self, df: pd.DataFrame) -> tuple[list[str], list[str]]:
         """Finds the most important numeric and categorical columns to plot."""
@@ -161,8 +149,7 @@ class DataPreprocessing:
         """Called by /analyse_chart route for one chart at a time."""
         try:
             result = analyse_chart(
-                image_b64, chart_title,
-                self._vision_key, _VISION_API_URL, _VISION_MODEL,
+                image_b64, chart_title
             )
             logging.info("On-demand analysis done for '%s'.", chart_title)
             return result

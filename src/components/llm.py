@@ -1,72 +1,46 @@
 from __future__ import annotations
 
-import json
-import os
 import sys
+import time
+import json
 from typing import Any
-
-import openai
-from dotenv import load_dotenv
 
 from src.logger import logging
 from src.exception import CustomException
 from src.utils import load_dataframe_from_mongo
 
-load_dotenv()
+from src.components.crew_config import build_analysis_crew
 
 # ──────────────────────────────────────────────
 # Constants
 # ──────────────────────────────────────────────
-_LLM_MODEL = "openai/gpt-oss-120b"
-_LLM_MAX_TOKENS = 4_096
 _UNIQUE_PREVIEW_LIMIT = 10
-
-_SYSTEM_PROMPT = """\
-You are a data analyst. Analyze the provided dataset and respond with ONLY a valid JSON object.
-NO markdown, NO code blocks, NO preamble. Just the JSON.
-Include all these keys: summary, quality_flags, column_insights, next_steps, uncertainty_notes
-"""
+_MAX_PROMPT_BYTES = 50_000
 
 
-# ──────────────────────────────────────────────
-# Main class
-# ──────────────────────────────────────────────
 class AnalysisExplainer:
     """
-    Loads a dataset from MongoDB GridFS, computes descriptive statistics
-    using pandas, and generates structured JSON insights via the LLM (Groq).
-
-    Usage
-    -----
-    explainer = AnalysisExplainer("my_dataset.csv")
-    result = explainer.run()
-    # result["analysis"]    → dict of computed statistics
-    # result["unique"]      → unique value previews dict
-    # result["ai_insights"] → structured dict (summary, quality_flags, etc.)
+    Data Analysis Pipeline.
+    Loads a dataset from MongoDB GridFS, computes descriptive statistics using pandas, 
+    and generates structured JSON insights via a 4-agent CrewAI pipeline.
     """
 
     def __init__(self, filename: str) -> None:
         try:
             self.filename = filename
             self.df = self._load_dataframe()
-            self.client = openai.OpenAI(
-                base_url="https://api.groq.com/openai/v1",
-                api_key=self._require_env("GROQ_API_KEY")
-            )
+
             logging.info("AnalysisExplainer initialised for file: %s", filename)
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    # ── private helpers ────────────────────────
-
     @staticmethod
     def _require_env(key: str) -> str:
         """Return env variable *key* or raise a clear error if missing."""
+        import os
         value = os.getenv(key)
         if not value:
-            raise EnvironmentError(
-                f"Required environment variable '{key}' is not set."
-            )
+            raise EnvironmentError(f"Required environment variable '{key}' is not set.")
         return value
 
     def _load_dataframe(self):
@@ -78,14 +52,39 @@ class AnalysisExplainer:
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    # ── public methods ─────────────────────────
+    def _build_prompt_data(self, analysis: dict[str, Any]) -> dict[str, Any]:
+        """Trim the full analysis dict down to what the crew actually needs."""
+        prompt_data = {
+            k: analysis[k]
+            for k in ["shape", "columns", "null_values", "null_percentages"]
+            if k in analysis
+        }
+        if "describe" in analysis:
+            prompt_data["describe_sample"] = {
+                c: {
+                    s: round(v, 2) if isinstance(v, float) else v
+                    for s, v in analysis["describe"][c].items()
+                    if s in ("count", "mean", "std")
+                }
+                for c in list(analysis["describe"].keys())[:5]
+            }
+        if "duplicate_rows" in analysis:
+            prompt_data["duplicate_rows"] = analysis["duplicate_rows"]
+
+        if len(json.dumps(prompt_data, default=str).encode("utf-8")) > _MAX_PROMPT_BYTES:
+            prompt_data = {
+                "shape": analysis.get("shape"),
+                "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0},
+                "duplicate_rows": analysis.get("duplicate_rows", 0),
+            }
+        return prompt_data
 
     def compute_analysis(self) -> dict[str, Any]:
         """Compute descriptive statistics using pandas."""
         try:
             df = self.df
             nulls = df.isnull().sum()
-            
+
             return {
                 "shape": df.shape,
                 "memory_usage_mb": round(df.memory_usage(deep=True).sum() / 1024 ** 2, 3),
@@ -118,64 +117,50 @@ class AnalysisExplainer:
             raise CustomException(e, sys) from e
 
     def explain_analysis(self, analysis: dict[str, Any]) -> dict[str, Any]:
-        """Send pre-computed stats to the LLM to get structured insights."""
-        try:
-            prompt_data = {k: analysis[k] for k in ["shape", "columns", "null_values", "null_percentages"] if k in analysis}
-            if "describe" in analysis:
-                prompt_data["describe_sample"] = {
-                    c: {s: round(v, 2) if isinstance(v, float) else v for s, v in analysis["describe"][c].items() if s in ("count", "mean", "std")}
-                    for c in list(analysis["describe"].keys())[:5]
-                }
+        """
+        Send pre-computed stats through the CrewAI pipeline to get structured insights.
+        """
+        prompt_data = self._build_prompt_data(analysis)
 
-            user_msg = f"Analyze this dataset summary and respond ONLY with valid JSON:\n{json.dumps(prompt_data, default=str)}\n\nREQUIRED JSON structure:\n" + '{"summary":"...","quality_flags":[{"column":"","severity":"","issue":"","detail":""}],"column_insights":[{"column":"","insight":""}],"next_steps":[{"title":"","detail":""}],"uncertainty_notes":""}'
-            
-            if len(user_msg.encode('utf-8')) > 50000:
-                prompt_data = {"shape": analysis.get("shape"), "null_info": {k: v for k, v in analysis.get("null_percentages", {}).items() if v > 0}}
-                user_msg = f"Dataset: {json.dumps(prompt_data, default=str)}. Analyze briefly."
+        for attempt in range(1, 4):
+            try:
+                crew = build_analysis_crew(prompt_data)
+                result = crew.kickoff()
 
-            import time
-            for attempt in range(1, 6):
-                try:
-                    raw = self.client.chat.completions.create(
-                        model=_LLM_MODEL, max_tokens=_LLM_MAX_TOKENS, temperature=0.3,
-                        messages=[{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": user_msg}]
-                    ).choices[0].message.content.strip()
+                insights = getattr(result, "pydantic", None)
+                if insights is not None:
+                    return self._validate_insights(insights.model_dump())
 
-                    start, end = raw.find('{'), raw.rfind('}')
-                    if start != -1 and end != -1:
-                        insights = json.loads(raw[start:end+1])
-                        if any(insights.get(k) for k in ["quality_flags", "column_insights", "next_steps"]):
-                            return self._validate_insights(insights)
-                    
-                    logging.warning("LLM response lacked insights or parsing failed. Using fallback.")
+                logging.warning("Crew result had no structured pydantic output. Using stats fallback.")
+                return self._build_insights_from_stats(analysis)
+
+            except Exception as e:
+                logging.warning("Error in explain_analysis attempt %d: %s", attempt, e)
+                if attempt == 3:
                     return self._build_insights_from_stats(analysis)
+                time.sleep(5 * attempt)
 
-                except Exception as e:
-                    logging.warning("Error in explain_analysis attempt %d: %s", attempt, e)
-                    if attempt == 5:
-                        return self._build_insights_from_stats(analysis)
-                    time.sleep(5 * attempt)
-            
-            return self._build_insights_from_stats(analysis)
+        return self._build_insights_from_stats(analysis)
 
     def _build_insights_from_stats(self, analysis: dict[str, Any]) -> dict[str, Any]:
-        """Builds fallback insights when AI analysis fails."""
+        """Builds fallback insights when the crew/LLM analysis fails."""
         try:
             nulls = analysis.get("null_percentages", {})
             dups = analysis.get("duplicate_rows", 0)
-            
-            summary = f"Dataset has {analysis.get('shape', (0,0))[0]} rows. "
+
+            summary = f"Dataset has {analysis.get('shape', (0, 0))[0]} rows. "
             if dups: summary += f"Found {dups} duplicates. "
-            
-            flags = [{"column": c, "severity": "high" if p > 50 else "medium", "issue": "Missing values", "detail": f"{p}% missing"} for c, p in nulls.items() if p > 10]
+
+            flags = [
+                {"column": c, "severity": "high" if p > 50 else "medium", "issue": "Missing values", "detail": f"{p}% missing"}
+                for c, p in nulls.items() if p > 10
+            ]
             if dups: flags.append({"column": "dataset", "severity": "medium", "issue": "Duplicate rows", "detail": f"Found {dups} duplicates."})
-            
-            insights = []
-            for col in analysis.get("numeric_columns", [])[:5]:
-                stats = analysis.get("describe", {}).get(col, {})
-                if stats:
-                    insights.append({"column": col, "insight": f"Mean: {stats.get('mean',0):.2f}, Std: {stats.get('std',0):.2f}"})
-            
+
+            insights = [{"column": col, "insight": f"Mean: {stats.get('mean', 0):.2f}, Std: {stats.get('std', 0):.2f}"}
+                        for col in analysis.get("numeric_columns", [])[:5] 
+                        if (stats := analysis.get("describe", {}).get(col, {}))]
+
             return {
                 "summary": summary.strip(),
                 "quality_flags": flags,
@@ -196,22 +181,13 @@ class AnalysisExplainer:
             "next_steps": [s for s in i.get("next_steps", []) if isinstance(s, dict)],
             "uncertainty_notes": str(i.get("uncertainty_notes", "Standard statistical limitations apply.")),
         }
-    
+
     def _default_insights(self) -> dict[str, Any]:
         """Return a valid default response."""
         return self._validate_insights({})
 
     def run(self) -> dict[str, Any]:
-        """
-        Execute the full pipeline: load → analyse → explain.
-
-        Returns
-        -------
-        dict with keys:
-            "analysis"     → raw statistics dict
-            "unique"       → unique value previews dict
-            "ai_insights"  → structured JSON dict from LLM
-        """
+        """Execute the full pipeline: load → analyse → explain."""
         try:
             logging.info("Starting analysis pipeline for '%s'.", self.filename)
             analysis = self.compute_analysis()
@@ -224,6 +200,5 @@ class AnalysisExplainer:
                 "unique": unique,
                 "ai_insights": ai_insights,
             }
-
         except Exception as e:
             raise CustomException(e, sys) from e

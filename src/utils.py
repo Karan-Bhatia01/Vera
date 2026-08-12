@@ -9,8 +9,8 @@ import textwrap
 from typing import Any
 
 import pandas as pd
-import gridfs
-from pymongo import MongoClient
+import openai
+from src.core.connections import get_gridfs, get_openai_vision_client
 
 from src.logger import logging
 from src.exception import CustomException
@@ -19,13 +19,9 @@ from src.exception import CustomException
 # ── MongoDB / GridFS ───────────────────────────────────────────────────────────
 
 def get_gridfs_connection():
-    """Create and return MongoDB GridFS connection."""
+    """Return shared MongoDB GridFS connection."""
     try:
-        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
-        db = client["clarityAI_database"]
-        fs = gridfs.GridFS(db)
-        logging.info("MongoDB GridFS connection established.")
+        fs = get_gridfs()
         return fs
     except Exception as e:
         raise CustomException(e, sys)
@@ -72,12 +68,23 @@ def fig_to_b64(fig, dpi: int = 72) -> str:
     return base64.b64encode(buf.read()).decode("utf-8")
 
 
+def resize_image_b64(b64_str: str, max_size=(512, 512)) -> str:
+    from PIL import Image
+    try:
+        img_data = base64.b64decode(b64_str)
+        img = Image.open(io.BytesIO(img_data))
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        logging.warning("Failed to resize image, returning original: %s", e)
+        return b64_str
+
+
 def analyse_chart(
     image_b64: str,
     chart_title: str,
-    api_key: str,
-    api_url: str,
-    model: str,
 ) -> dict[str, Any]:
     """
     Send a base64 PNG to a vision-capable LLM endpoint via OpenAI client.
@@ -88,9 +95,13 @@ def analyse_chart(
     Thread-safe — no shared state.
     """
     import openai
+    
+    # Groq ignores detail: low and computes tokens by base64 length/res. 
+    # Downsample drastically before sending to vision!
+    image_b64 = resize_image_b64(image_b64, max_size=(256, 256))
 
     # Check if API key is configured
-    if not api_key or api_key == "":
+    if not os.environ.get("GROQ_API_KEY"):
         logging.error("No API key provided for chart analysis. AI analysis disabled.")
         return {
             "represents": chart_title,
@@ -125,13 +136,16 @@ def analyse_chart(
         }
     """).strip()
 
-    base_url = api_url.replace("/chat/completions", "")
+
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": [
             {
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{image_b64}"},
+                "image_url": {
+                    "url": f"data:image/png;base64,{image_b64}",
+                    "detail": "low"
+                },
             },
             {
                 "type": "text",
@@ -143,13 +157,9 @@ def analyse_chart(
     # Retry up to 5 times on failure with exponential backoff
     for attempt in range(1, 6):
         try:
-            client = openai.OpenAI(
-                base_url=base_url,
-                api_key=api_key,
-                timeout=90,
-            )
+            client = get_openai_vision_client()
             response = client.chat.completions.create(
-                model=model,
+                model=os.environ.get("GROQ_VISION_MODEL", "qwen/qwen3.6-27b"),
                 max_tokens=4096,
                 temperature=0.3,
                 messages=messages,

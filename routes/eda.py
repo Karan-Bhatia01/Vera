@@ -1,7 +1,7 @@
 import threading
 from flask import Blueprint, request, jsonify
 from services.auth_decorator import require_auth
-from src.components.eda_processing import DataPreprocessing, _VISION_API_KEY, _VISION_API_URL, _VISION_MODEL
+from src.components.eda_processing import DataPreprocessing
 from src.utils import analyse_chart
 from src.components.job_store import create_job, update_job, get_job_status
 from src.agents.missing_value_agent import decide_missing_value_strategy
@@ -70,9 +70,6 @@ def analyse_chart_route():
         result = analyse_chart(
             data.get("image_b64"),
             data.get("chart_title"),
-            _VISION_API_KEY,
-            _VISION_API_URL,
-            _VISION_MODEL
         )
         return jsonify(result), 200
     except Exception as e:

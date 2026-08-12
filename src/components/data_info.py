@@ -3,9 +3,7 @@ import io
 import os
 import pandas as pd
 
-import gridfs
-from pymongo import MongoClient
-
+from src.core.connections import get_db, get_gridfs
 from src.logger import logging
 from src.exception import CustomException
 
@@ -15,12 +13,10 @@ class DataInfo:
         try:
             self.filename = filename
 
-            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-            client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
-            self.db = client["clarityAI_database"]
-            self.fs = gridfs.GridFS(self.db)
+            self.db = get_db()
+            self.fs = get_gridfs()
 
-            logging.info("MongoDB connection established in Data-Info.")
+            logging.info("MongoDB connection established in Data-Info (shared).")
 
         except Exception as e:
             raise CustomException(e, sys)

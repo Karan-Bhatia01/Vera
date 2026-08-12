@@ -11,7 +11,7 @@ import json
 import re
 import time
 
-from groq import Groq
+from src.core.connections import get_groq_client
 
 from src.logger import logging
 
@@ -24,11 +24,6 @@ _MODEL = os.environ.get("GROQ_MODEL", "groq/compound")
 # Hard ceiling on any single LLM call so a stalled request can never hang a
 # background job forever — callers fall back to defaults when this fires.
 _DEFAULT_TIMEOUT = float(os.environ.get("GROQ_TIMEOUT", "45"))
-
-
-def get_groq_client(timeout: float = _DEFAULT_TIMEOUT) -> Groq:
-    return Groq(api_key=os.environ.get("GROQ_API_KEY"), timeout=timeout, max_retries=2)
-
 
 _RATE_LIMIT_RETRIES = int(os.environ.get("GROQ_RATE_LIMIT_RETRIES", "4"))
 _MAX_RETRY_WAIT = 15.0  # never sleep longer than this on a single backoff
