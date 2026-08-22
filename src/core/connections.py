@@ -38,7 +38,12 @@ def get_mongo_client() -> MongoClient:
     with _mongo_lock:
         if _mongo_client is None:
             mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-            _mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
+            _mongo_client = MongoClient(
+                mongo_uri,
+                serverSelectionTimeoutMS=10000,
+                tls=("mongodb+srv" in mongo_uri),
+                retryWrites=True,
+            )
     return _mongo_client
 
 
