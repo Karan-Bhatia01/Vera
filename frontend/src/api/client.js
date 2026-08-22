@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
   // Without a timeout a stalled backend leaves the UI spinning forever
   // (e.g. Data Info stuck on "Loading…"). Fail fast so callers can show
   // an error and let the user retry. Long jobs are polled, not held open,

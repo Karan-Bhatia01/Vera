@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../api/client";
 import Background from "../components/Background";
 import Navbar from "../components/landing/Navbar";
 
@@ -58,7 +58,7 @@ export default function Signup() {
     }
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/auth/signup", form);
+      const res = await api.post("/auth/signup", form);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("email", res.data.email);
       navigate("/upload");
