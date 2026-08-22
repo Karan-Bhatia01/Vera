@@ -37,7 +37,7 @@ def get_mongo_client() -> MongoClient:
     global _mongo_client
     with _mongo_lock:
         if _mongo_client is None:
-            mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+            mongo_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
             _mongo_client = MongoClient(
                 mongo_uri,
                 serverSelectionTimeoutMS=10000,
@@ -52,7 +52,7 @@ def get_db():
     with _mongo_lock:
         if _mongo_db is None:
             client = get_mongo_client()
-            db_name = os.environ.get("MONGO_DB", "clarityAI_database")
+            db_name = os.environ.get("DB_NAME", "clarityAI_database")
             _mongo_db = client[db_name]
     return _mongo_db
 
