@@ -10,6 +10,7 @@ Typical response time: 1-3 seconds instead of 30-60+.
 
 import sys
 import json
+from pathlib import Path
 
 import pandas as pd
 
@@ -17,22 +18,8 @@ from src.agents.llm_provider import call_llm, parse_json_from_response
 from src.logger import logging
 from src.exception import CustomException
 
-
-SYSTEM_PROMPT = """\
-You are a machine learning feature engineer. You will receive a JSON summary
-of a dataset's columns and return a feature engineering plan.
-
-Rules:
-- Drop ID-like columns (unique value count == row count), names, or free text.
-- Numeric continuous columns → "numeric".
-- Categorical with natural order (e.g. low/medium/high) → "ordinal". Include the order list.
-- Categorical with no natural order and cardinality <= 15 → "onehot".
-- Categorical with cardinality > 15 → "drop".
-- Never include the target column in any list.
-
-Return ONLY valid JSON, no explanation, no markdown:
-{"drop": ["col1"], "ordinal": {"col2": ["low","medium","high"]}, "onehot": ["col3"], "numeric": ["col4"]}
-"""
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+SYSTEM_PROMPT = (PROMPTS_DIR / "feature_engineering.md").read_text(encoding="utf-8")
 
 
 def _heuristic_plan(df: pd.DataFrame, target_column: str) -> dict:

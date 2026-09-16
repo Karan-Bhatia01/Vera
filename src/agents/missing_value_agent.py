@@ -9,6 +9,7 @@ Returns {} immediately if no missing values — no API call at all.
 
 import sys
 import json
+from pathlib import Path
 
 import pandas as pd
 
@@ -16,25 +17,10 @@ from src.agents.llm_provider import call_llm, parse_json_from_response
 from src.logger import logging
 from src.exception import CustomException
 
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+SYSTEM_PROMPT = (PROMPTS_DIR / "missing_value.md").read_text(encoding="utf-8")
 
 VALID_METHODS = ["mean", "median", "mode", "ffill", "bfill", "zero", "drop"]
-
-SYSTEM_PROMPT = """\
-You are a data analyst deciding how to fill missing values.
-For each column provided, choose exactly one fill method:
-mean, median, mode, ffill, bfill, zero, drop
-
-Rules:
-- Numeric, roughly symmetric → mean
-- Numeric, skewed or outliers → median
-- Categorical/text → mode
-- Sequential/time data → ffill or bfill
-- Missing = 0 makes sense (counts, flags) → zero
-- Over 60% missing → drop
-
-Return ONLY valid JSON, no explanation:
-{"column_name": "method", ...}
-"""
 
 
 def decide_missing_value_strategy(df: pd.DataFrame) -> dict:

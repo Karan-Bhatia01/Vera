@@ -1,5 +1,7 @@
 from typing import Any
 import threading
+from pathlib import Path
+import yaml
 from crewai import Agent, Task, Crew, Process
 from pydantic import BaseModel, Field
 
@@ -26,6 +28,13 @@ class InsightsSchema(BaseModel):
     next_steps: list[NextStep] = Field(default_factory=list)
     uncertainty_notes: str = "Standard statistical limitations apply."
 
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+CREW_CONFIG_PATH = PROMPTS_DIR / "crew.yaml"
+
+def _load_crew_config() -> dict:
+    with open(CREW_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
 # Singleton agents
 _agents_lock = threading.Lock()
 _auditor: Agent | None = None
@@ -37,36 +46,37 @@ def get_agents():
     global _auditor, _analyst, _fact_checker, _writer
     with _agents_lock:
         if _auditor is None:
+            config = _load_crew_config().get("agents", {})
             llm = get_gemini_client()
             
             _auditor = Agent(
-                role="Data Quality Auditor",
-                goal="Identify data quality issues (nulls, duplicates, dtype problems) strictly from the provided stats.",
-                backstory="A meticulous data engineer who never flags an issue without a number to back it.",
+                role=config.get("auditor", {}).get("role", "Data Quality Auditor"),
+                goal=config.get("auditor", {}).get("goal", ""),
+                backstory=config.get("auditor", {}).get("backstory", ""),
                 llm=llm,
                 verbose=False,
             )
 
             _analyst = Agent(
-                role="Statistical Analyst",
-                goal="Interpret column-level statistics and write a plain-language summary and per-column insights.",
-                backstory="A data scientist who explains statistics clearly without overreaching beyond what the numbers show.",
+                role=config.get("analyst", {}).get("role", "Statistical Analyst"),
+                goal=config.get("analyst", {}).get("goal", ""),
+                backstory=config.get("analyst", {}).get("backstory", ""),
                 llm=llm,
                 verbose=False,
             )
 
             _fact_checker = Agent(
-                role="Fact Checker",
-                goal="Verify every claim made by the Auditor and Analyst against the raw stats, and remove anything unsupported.",
-                backstory="A skeptical reviewer whose only job is to catch hallucinated or unsupported claims before they ship.",
+                role=config.get("fact_checker", {}).get("role", "Fact Checker"),
+                goal=config.get("fact_checker", {}).get("goal", ""),
+                backstory=config.get("fact_checker", {}).get("backstory", ""),
                 llm=llm,
                 verbose=False,
             )
 
             _writer = Agent(
-                role="Report Writer",
-                goal="Compile the verified findings into the exact required JSON schema, including actionable next steps.",
-                backstory="A technical writer who produces clean, schema-compliant structured output.",
+                role=config.get("writer", {}).get("role", "Report Writer"),
+                goal=config.get("writer", {}).get("goal", ""),
+                backstory=config.get("writer", {}).get("backstory", ""),
                 llm=llm,
                 verbose=False,
             )
@@ -79,44 +89,31 @@ def build_analysis_crew(prompt_data: dict[str, Any]) -> Crew:
     context_str = str(prompt_data)
     
     auditor, analyst, fact_checker, writer = get_agents()
+    
+    config = _load_crew_config().get("tasks", {})
 
     audit_task = Task(
-        description=(
-            f"Dataset stats:\n{context_str}\n\n"
-            "List concrete quality issues (nulls %, duplicates, dtype mismatches). "
-            "Only flag what the numbers support."
-        ),
-        expected_output="A list of quality issues, each with column, severity, issue, and detail.",
+        description=config.get("audit_task", {}).get("description", "").format(context_str=context_str),
+        expected_output=config.get("audit_task", {}).get("expected_output", ""),
         agent=auditor,
     )
 
     analysis_task = Task(
-        description=(
-            f"Dataset stats:\n{context_str}\n\n"
-            "Write a 2-3 sentence summary and per-column insights based on the describe_sample stats."
-        ),
-        expected_output="A summary string and a list of column insights.",
+        description=config.get("analysis_task", {}).get("description", "").format(context_str=context_str),
+        expected_output=config.get("analysis_task", {}).get("expected_output", ""),
         agent=analyst,
     )
 
     check_task = Task(
-        description=(
-            "Review the Auditor's quality flags and the Analyst's insights. "
-            "Remove or correct any claim not directly supported by the original stats. "
-            "Do not invent new findings."
-        ),
-        expected_output="A cleaned, verified list of quality flags and column insights.",
+        description=config.get("check_task", {}).get("description", ""),
+        expected_output=config.get("check_task", {}).get("expected_output", ""),
         agent=fact_checker,
         context=[audit_task, analysis_task],
     )
 
     write_task = Task(
-        description=(
-            "Using the verified findings, produce the final report: summary, quality_flags, "
-            "column_insights, next_steps (2-4 concrete actions), and uncertainty_notes "
-            "(what the analysis can't tell you)."
-        ),
-        expected_output="A JSON object matching the InsightsSchema exactly.",
+        description=config.get("write_task", {}).get("description", ""),
+        expected_output=config.get("write_task", {}).get("expected_output", ""),
         agent=writer,
         context=[check_task],
         output_pydantic=InsightsSchema,

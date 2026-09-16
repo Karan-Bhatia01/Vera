@@ -28,8 +28,6 @@ from src.ml.problem_type import detect_problem_type
 from src.ml.models import get_models
 from src.ml.preprocessing import build_splits
 from src.ml.training import train_and_evaluate, best_model_name
-from src.ml.persistence import save_results
-
 
 
 class MLPipeline:
@@ -86,10 +84,7 @@ class MLPipeline:
             best_model = best_model_name(results, rank_metric)
 
             progress(90, "Finalizing results...")
-            mongo_id = save_results(
-                self.db, self.filename, self.target_column, results,
-                problem_type, feature_plan, rank_metric, best_model,
-            )
+            mongo_id = ""
 
             progress(100, "Pipeline complete!")
             logging.info("=== ML Pipeline complete. Best: %s ===", best_model)

@@ -10,6 +10,7 @@ Returns a list of model names that are valid keys in ml_pipeline._get_models().
 import sys
 import json
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 
@@ -17,6 +18,8 @@ from src.agents.llm_provider import call_llm, parse_json_from_response
 from src.logger import logging
 from src.exception import CustomException
 
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+SYSTEM_PROMPT = (PROMPTS_DIR / "model_selection.md").read_text(encoding="utf-8")
 
 CLASSIFICATION_MODELS = [
     "LogisticRegression", "DecisionTree", "RandomForest",
@@ -27,20 +30,6 @@ REGRESSION_MODELS = [
     "LinearRegression", "Ridge", "Lasso", "DecisionTree",
     "RandomForest", "GradientBoosting", "SVR", "KNN", "XGBoost", "LightGBM",
 ]
-
-SYSTEM_PROMPT = """\
-You are an ML engineer selecting which models to train given dataset characteristics.
-Choose 3-5 models from the available list. Return ONLY a JSON array, no explanation:
-["Model1", "Model2", "Model3"]
-
-Guidance:
-- Small datasets (<2000 rows): prefer simpler models (LogisticRegression, Ridge, DecisionTree, NaiveBayes)
-- Large datasets (>10000 rows): tree ensembles work well (RandomForest, GradientBoosting, XGBoost, LightGBM)
-- High feature count (>50): avoid SVM and KNN (slow, poor scaling)
-- Imbalanced classes: prefer GradientBoosting, XGBoost, RandomForest
-- Always include at least one fast baseline (LogisticRegression for classification, Ridge for regression)
-- Never return more than 5 or fewer than 3 models
-"""
 
 
 def select_models(
