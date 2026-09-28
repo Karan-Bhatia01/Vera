@@ -6,6 +6,7 @@ import Stats from "./landing/Stats";
 import Pipeline from "./landing/Pipeline";
 import Features from "./landing/Features";
 import CTA from "./landing/CTA";
+import FAQ from "./landing/FAQ";
 import Footer from "./landing/Footer";
 
 export default function LandingPage() {
@@ -20,6 +21,7 @@ export default function LandingPage() {
         <Pipeline />
         <Features />
         <CTA />
+        <FAQ />
         <Footer />
       </div>
     </div>

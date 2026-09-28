@@ -2,13 +2,14 @@ export const navLinks = [
   { label: "Home", href: "/#" },
   { label: "Engine", href: "/#pipeline" },
   { label: "Features", href: "/#features" },
+  { label: "FAQ", href: "/#faq" },
 ];
 
 export const stats = [
-  { value: "9", label: "STAGES" },
-  { value: "10+", label: "MODELS" },
-  { value: "12+", label: "CHARTS" },
-  { value: "50MB", label: "FILE LIMIT" },
+  { value: "3", label: "STAGES" },
+  { value: "5+", label: "MODELS" },
+  { value: "10+", label: "CHARTS" },
+  { value: "3MB", label: "FILE LIMIT" },
 ];
 
 export const pipelineSteps = [
@@ -32,11 +33,6 @@ export const pipelineSteps = [
     title: "Explain",
     body: "Feature importance metrics and a RAG assistant that answers questions about your own data.",
   },
-  {
-    n: "05",
-    title: "Export",
-    body: "Walk away with a .pkl model, a full Jupyter notebook, or both.",
-  },
 ];
 
 export const features = [
@@ -51,11 +47,6 @@ export const features = [
     body: "End-to-end preprocessing and model training. From feature engineering to tuning, Vera handles it all.",
   },
   {
-    icon: "✨",
-    title: "RAG Assistant",
-    body: "Ask questions about your data in plain language and get answers grounded in the dataset itself.",
-  },
-  {
     icon: "📈",
     title: "Visual Insights",
     body: "Automatic visualizations with AI-generated explanations for every chart, pattern, and anomaly.",
@@ -65,9 +56,49 @@ export const features = [
     title: "Model Comparison",
     body: "Compare models head-to-head with confusion matrices, feature importance, and performance scores.",
   },
+];
+
+export const faqSubtitle = "Questions About an AutoML Tool. Ask Away.";
+
+export const faqs = [
   {
-    icon: "💾",
-    title: "Export & Deploy",
-    body: "Download trained models as .pkl files or export the full analysis as a Jupyter notebook.",
+    q: "Is it really free?",
+    a: "Yes! Unless you count the hours you'll spend staring at confusion matrices.",
+  },
+  {
+    q: "Do I need to know ML?",
+    a: "Nope. Vera does the hard part. You just pick a target column and look smart.",
+  },
+  {
+    q: "What if my model gets 100% accuracy?",
+    a: "Congrats, or more likely, data leakage. Go check your columns. We'll wait.",
+  },
+  {
+    q: "What if I find a bug?",
+    a: "Tell us. Bugs are just surprise features we didn't ask for.",
+  },
+    {
+    q: "Can Vera help me impress my crush?",
+    a: "Absolutely! Just casually mention your model's F1 score and watch the sparks fly. Or not. No guarantees.",
+  },
+  {
+    q: "Can Vera predict my exam results?",
+    a: "Upload your attendance and study hours, and it'll try. The answer may hurt. Don't blame the model.",
+  },
+  {
+    q: "Does Vera get things wrong?",
+    a: "Sometimes. It's a model, not a wizard. Garbage data in, confident garbage out.",
+  },
+  {
+    q: "Can I train it on my Netflix history?",
+    a: "You can. It will conclude you need sleep. Very accurate.",
+  },
+  {
+    q: "What if all the models perform badly?",
+    a: "Then the data is the problem, not you. Add better features and try again.",
+  },
+  {
+    q: "Can I show Vera's results to my boss?",
+    a: "Yes. Just say you built it. We won't tell.",
   },
 ];
