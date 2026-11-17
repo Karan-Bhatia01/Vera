@@ -1,45 +1,35 @@
 import { Link } from "react-router-dom";
 import { navLinks } from "./data";
-import useTheme from "../../hooks/useTheme";
+import { BrandMark } from "../brand/Brand";
+import ThemeToggle from "../ThemeToggle";
 
 export default function Navbar() {
-  const [theme, toggleTheme] = useTheme();
-
   return (
-    <header className="sticky top-4 z-50 flex justify-center px-6">
-      <nav className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur-md px-2 py-1.5 shadow-xl">
-        <span className="flex items-center gap-2 pl-3 pr-4 font-bold tracking-wide text-sm">
-          <span className="h-2 w-2 rounded-full bg-[var(--blue)]" />
-          VERA
-        </span>
+    <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--bg)]/90 backdrop-blur-md">
+      <nav className="mx-auto flex max-w-6xl items-center gap-1 px-3 sm:gap-2 sm:px-6 h-16" aria-label="Main">
+        <BrandMark className="mr-auto" />
         {navLinks.map((l) => (
           <a
             key={l.label}
             href={l.href}
-            className="hidden sm:block px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+            className="hidden sm:block rounded-full px-3 py-1.5 text-[15px] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
           >
             {l.label}
           </a>
         ))}
         <Link
           to="/login"
-          className="ml-1 rounded-full border border-[var(--line)] px-4 py-1.5 text-sm font-semibold text-[var(--text)] hover:bg-[var(--line)] transition-colors"
+          className="rounded-full px-3 py-1.5 text-[15px] font-semibold text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors"
         >
-          Login
+          Log in
         </Link>
         <Link
           to="/signup"
-          className="rounded-full bg-[var(--blue)] px-4 py-1.5 text-sm font-semibold text-[var(--bg)]"
+          className="rounded-full bg-[var(--text)] px-4 py-2 text-[15px] font-semibold text-[var(--bg)] transition-opacity hover:opacity-90"
         >
-          Signup
+          Sign up
         </Link>
-        <button
-          onClick={toggleTheme}
-          className="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--line)] text-[var(--text)] transition-colors hover:bg-[var(--blue)] hover:text-[var(--bg)]"
-          aria-label="Toggle Theme"
-        >
-          {theme === "dark" ? "☀" : "☾"}
-        </button>
+        <ThemeToggle className="ml-1" />
       </nav>
     </header>
   );

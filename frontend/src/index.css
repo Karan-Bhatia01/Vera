@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
   --radius-sm: 0.1rem;
   --radius-md: 0.31rem;
   --radius-lg: 0.42rem;
@@ -11,73 +12,133 @@
   --radius-4xl: 1.7rem;
 }
 
+/*
+  Vera: felt mascots on graph paper.
+  Each pipeline stage owns one mascot colour:
+    upload = lime, data info = sun, EDA = violet, models = sky.
+  The bright colours are fills only; the "-ink" variants are safe for text.
+*/
 :root {
-  --bg: #000000;
-  --sidebar: #0a0a0b;
-  --surface: #222428;
-  --surface-2: #2a2c31;
-  --text: #f1f3f4;
-  --muted: #a9adb5;
-  --line: rgba(255, 255, 255, 0.1);
-  --blue: #8ab4f8;
-  --yellow: #fdd663;
-  --green: #81c995;
+  --lime: #9bd12e;
+  --sun: #f5c400;
+  --violet: #a04fd8;
+  --sky: #2f8fe6;
+
+  --lime-ink: #4e7a0e;
+  --sun-ink: #8a6400;
+  --violet-ink: #7a2fb8;
+  --sky-ink: #1767b8;
+  --danger: #b42318;
+
+  --bg: #f6f7fb;        /* graph paper */
+  --sidebar: #eceff7;
+  --surface: #ffffff;
+  --surface-2: #e7eaf4;
+  --text: #1e2452;      /* felt navy */
+  --muted: #565d86;
+  --line: rgba(30, 36, 82, 0.14);
+  --grid: rgba(30, 36, 82, 0.05);
+  --scroll-thumb: rgba(30, 36, 82, 0.28);
+  --scroll-thumb-hover: rgba(30, 36, 82, 0.5);
+
+  /* Older names still used across pages */
+  --blue: var(--sky-ink);
+  --yellow: var(--sun-ink);
+  --green: var(--lime-ink);
+  --red: var(--danger);
+
   --radius-lg: 20px;
   --radius-md: 14px;
-  
-  --orb-outer: rgba(180, 50, 50, 0.6);
-  --orb-inner: rgba(200, 200, 200, 0.4);
-  --orb-dot: #ffffff;
-  --orb-fill: rgba(180, 50, 50, 0.3);
-  --pill-stroke: rgba(60, 100, 200, 0.6);
-  --pill-fill: rgba(60, 100, 200, 0.3);
-  --circ-stroke: rgba(200, 150, 50, 0.5);
-  --circ-fill: rgba(200, 150, 50, 0.8);
-  
-  font-family: "Manrope", system-ui, sans-serif;
+
+  font-family: var(--font-sans);
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  color-scheme: light;
 }
 
-:root[data-theme="light"] {
-  --bg: #f4f1ea;
-  --sidebar: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #ece9e2;
-  --text: #202124;
-  --muted: #555b64;
-  --line: rgba(32, 33, 36, 0.22);
-  --blue: #79a7eb;
-  --yellow: #f2c94c;
-  --green: #69b57e;
-  
-  --orb-outer: rgba(220, 50, 50, 0.85);
-  --orb-inner: rgba(0, 0, 0, 0.4);
-  --orb-dot: #000000;
-  --orb-fill: rgba(220, 50, 50, 0.4);
-  --pill-stroke: rgba(40, 80, 240, 0.85);
-  --pill-fill: rgba(40, 80, 240, 0.4);
-  --circ-stroke: rgba(240, 140, 20, 0.85);
-  --circ-fill: rgba(240, 140, 20, 0.95);
-  
-  color-scheme: light;
+/* Felt graphite: the warm grey-black of the mascots' felt berets and headphones, with chalk text */
+:root[data-theme="dark"] {
+  --violet: #b072e6;
+
+  --lime-ink: #a8dc3c;
+  --sun-ink: #f5c400;
+  --violet-ink: #cfa6f2;
+  --sky-ink: #7dbbf3;
+  --danger: #ff8f7f;
+
+  --bg: #24221f;
+  --sidebar: #1d1b19;
+  --surface: #2e2b27;
+  --surface-2: #3a3631;
+  --text: #f3f0e8;
+  --muted: #b5aea2;
+  --line: rgba(243, 240, 232, 0.13);
+  --grid: rgba(243, 240, 232, 0.035);
+  --scroll-thumb: rgba(243, 240, 232, 0.24);
+  --scroll-thumb-hover: rgba(243, 240, 232, 0.44);
+
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      circle at 15% 0%,
-      rgba(138, 180, 248, 0.08),
-      transparent 32rem
-    ),
-    var(--bg);
+  /* Graph-paper grid: Vera's working surface */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
   overflow-x: hidden;
+}
+
+:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--sun);
+  color: #1e2452;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Show the hero shelf finished, with no delayed pop-in */
+  .shelf-draw,
+  .mascot-land {
+    animation: none !important;
+  }
+}
+
+/* Hero shelf: the line draws, then the mascots drop in with a small bounce. */
+@keyframes shelf-draw {
+  from { transform: scaleX(0); }
+}
+@keyframes mascot-land {
+  0% { transform: translateY(-70px); opacity: 0; }
+  60% { transform: translateY(6px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.shelf-draw {
+  transform-origin: left;
+  animation: shelf-draw 500ms ease-out both;
+}
+.mascot-land {
+  animation: mascot-land 650ms cubic-bezier(0.3, 0.9, 0.4, 1) both;
 }
 
 @layer components {
@@ -89,19 +150,32 @@ body {
   }
 }
 
-@layer utilities {
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--muted);
-    border-radius: var(--radius-md);
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--text);
+/* Scrollbars, app-wide: a thin rounded thumb in the theme colour, no arrow buttons. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
+  border: 3px solid transparent; /* inset the thumb so it floats */
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+}
+/* Firefox. Scoped so Chromium keeps the ::-webkit-scrollbar styles above
+   (it ignores them whenever scrollbar-color is set). */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
 }

@@ -12,19 +12,16 @@ export default function CookieConsent() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pointer-events-none flex justify-center sm:justify-end">
-      <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--text)]/[0.1] bg-[var(--bg)] shadow-2xl p-6 relative overflow-hidden">
-        {/* Subtle glow */}
-        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-[var(--text)] opacity-5 blur-[40px]" />
-        
-        <h3 className="text-lg font-bold tracking-tight mb-2 relative z-10">We value your privacy</h3>
-        <p className="text-sm text-[var(--muted)] mb-6 relative z-10 leading-relaxed">
-          We use your browser's local storage to keep you signed in and save your settings. We don't use tracking or advertising cookies. 
-          Read our <Link to="/cookie-policy" className="underline hover:text-[var(--text)]">Cookie Policy</Link> for more details.
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 sm:justify-end">
+      <div role="region" aria-label="Storage notice" className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-xl">
+        <h2 className="mb-2 text-lg font-extrabold tracking-tight">How Vera uses your browser</h2>
+        <p className="mb-5 text-[15px] leading-relaxed text-[var(--muted)]">
+          We use your browser&apos;s local storage to keep you signed in and save your settings. We don&apos;t use tracking or
+          advertising cookies. Read the <Link to="/cookie-policy" className="underline underline-offset-2 hover:text-[var(--text)]">cookie policy</Link>.
         </p>
         <button
           onClick={accept}
-          className="w-full rounded-xl bg-[var(--text)] py-3 text-sm font-bold text-[var(--bg)] transition hover:opacity-90 relative z-10"
+          className="w-full rounded-full bg-[var(--text)] py-3 font-bold text-[var(--bg)] transition-opacity hover:opacity-90"
         >
           Got it
         </button>

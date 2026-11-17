@@ -1,229 +1,68 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { STAGES, STAGE_ORDER } from "../brand/stages";
 
-const fade = {
-  hidden: { opacity: 0, y: 14 },
-  show: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.18, duration: 0.7, ease: "easeOut" },
-  }),
-};
+// The page's one orchestrated moment (CSS keyframes in index.css): the shelf draws,
+// then each mascot lands in pipeline order. Reduced-motion users see the final state.
+const SHELF_DRAW_MS = 500;
+const LAND_GAP_MS = 140;
 
 export default function Hero() {
   return (
-    <section className="hero">
-      {/* Abstract geometric background elements */}
-      <div className="hero__graphics">
-        {/* Top Left: Orbital Rings (Image 2 style) */}
-        <motion.div
-          className="graphic graphic--orbit"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 160, repeat: Infinity, ease: "linear" }}
-        >
-          <svg viewBox="0 0 600 600" fill="none">
-            {/* Outer warm ring */}
-            <circle cx="300" cy="300" r="260" stroke="var(--orb-outer)" strokeWidth="1.5" />
-            {/* Inner neutral ring */}
-            <circle cx="300" cy="300" r="140" stroke="var(--orb-inner)" strokeWidth="1" />
-            {/* Crisp white dot on outer ring */}
-            <circle cx="40" cy="300" r="7" fill="var(--orb-dot)" />
-            {/* Dim solid circle */}
-            <circle cx="460" cy="420" r="65" fill="var(--orb-fill)" />
-          </svg>
-        </motion.div>
-
-        {/* Bottom Right: Pill & Circle intersection (Image 1/3 style) */}
-        <motion.div
-          className="graphic graphic--pill"
-          animate={{ y: [0, -25, 0], x: [0, 15, 0], rotate: [0, -3, 0] }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <svg viewBox="0 0 500 300" fill="none">
-            <g transform="rotate(-15 250 150)">
-              {/* Pill outline (blue tint) */}
-              <rect x="50" y="75" width="400" height="150" rx="75" stroke="var(--pill-stroke)" strokeWidth="1.5" />
-              {/* Solid intersecting circle */}
-              <circle cx="110" cy="200" r="60" fill="var(--pill-fill)" />
-            </g>
-          </svg>
-        </motion.div>
-
-        {/* Top Right: Technical dashed circle (Gold/yellow tint) */}
-        <motion.div
-          className="graphic graphic--circle"
-          animate={{ scale: [1, 1.05, 1], rotate: [0, 90, 0] }}
-          transition={{ duration: 35, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <svg viewBox="0 0 400 400" fill="none">
-            <circle cx="200" cy="200" r="180" stroke="var(--circ-stroke)" strokeWidth="1" strokeDasharray="4 12" />
-            <circle cx="200" cy="20" r="4" fill="var(--circ-fill)" />
-          </svg>
-        </motion.div>
-      </div>
-
-      {/* Ambient glow */}
-      <div className="hero__glow" />
-
-      <div className="hero__content">
-        <motion.h1
-          className="hero__wordmark"
-          variants={fade}
-          initial="hidden"
-          animate="show"
-          custom={0}
-        >
-          Vera
-        </motion.h1>
-
-        <motion.p
-          className="hero__tagline"
-          variants={fade}
-          initial="hidden"
-          animate="show"
-          custom={1}
-        >
-          Vera profiles your data, charts what matters, and trains the <br/> best-fit models for your target, with no code.
-        </motion.p>
-
-        <motion.div
-          className="hero__actions"
-          variants={fade}
-          initial="hidden"
-          animate="show"
-          custom={2}
-        >
-          <Link to="/signup" className="hero__btn hero__btn--primary">
-            Start for free
+    <section className="mx-auto grid max-w-6xl items-center gap-14 px-4 pt-16 pb-20 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-24 lg:pb-28">
+      <div>
+        <h1 className="max-w-[16ch] text-[clamp(2.5rem,5.4vw,4.25rem)] font-extrabold leading-[1.0] tracking-[-0.025em]">
+          Drop in a spreadsheet. Get charts, insights and a trained model.
+        </h1>
+        <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-[var(--muted)]">
+          Vera reads your CSV, picks the charts worth looking at, and trains models to predict
+          the column you care about. No code and no setup.
+        </p>
+        <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <Link
+            to="/signup"
+            className="rounded-full bg-[var(--text)] px-7 py-3.5 text-base font-bold text-[var(--bg)] transition-opacity hover:opacity-90"
+          >
+            Upload your first CSV
           </Link>
-          <a href="#pipeline" className="hero__btn hero__btn--ghost">
-            See the pipeline
+          <a href="#how" className="text-base font-semibold underline decoration-2 underline-offset-4 decoration-[var(--line)] hover:decoration-[var(--text)]">
+            See how it works
           </a>
-        </motion.div>
+        </div>
+        <p className="mt-6 text-sm text-[var(--muted)]">Free to use. CSVs up to 25,000 rows and 20 columns.</p>
       </div>
 
-      <style>{`
-        .hero {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          padding: 0 1.5rem;
-          overflow: hidden;
-        }
-
-        /* --- Graphics --- */
-        .hero__graphics {
-          position: absolute;
-          inset: 0;
-          overflow: hidden;
-          pointer-events: none;
-          z-index: 0;
-        }
-        .graphic {
-          position: absolute;
-        }
-        .graphic--orbit {
-          top: -15%;
-          left: -10%;
-          width: max(500px, 45vw);
-          height: max(500px, 45vw);
-        }
-        .graphic--pill {
-          bottom: 0%;
-          right: -5%;
-          width: max(450px, 40vw);
-          height: max(270px, 24vw);
-        }
-        .graphic--circle {
-          top: 10%;
-          right: 5%;
-          width: max(300px, 25vw);
-          height: max(300px, 25vw);
-        }
-
-        .hero__glow {
-          position: absolute;
-          z-index: 0;
-          width: min(550px, 80vw);
-          height: min(550px, 80vw);
-          border-radius: 50%;
-          background: radial-gradient(
-            circle,
-            color-mix(in srgb, var(--blue) 8%, transparent) 0%,
-            transparent 70%
-          );
-          pointer-events: none;
-        }
-
-        .hero__content {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0;
-          text-align: center;
-        }
-
-        .hero__wordmark {
-          font-family: "Manrope", system-ui, sans-serif;
-          font-size: clamp(8rem, 22vw, 20rem);
-          font-weight: 800;
-          letter-spacing: -0.045em;
-          line-height: 0.85;
-          color: var(--text);
-          user-select: none;
-          position: relative;
-          z-index: 2;
-        }
-
-        .hero__tagline {
-          margin-top: 1.8rem;
-          font-size: clamp(0.95rem, 1.4vw, 1.15rem);
-          color: var(--muted);
-          letter-spacing: 0.015em;
-          font-weight: 400;
-          opacity: 0.7;
-          line-height: 1.5;
-        }
-
-        .hero__actions {
-          display: flex;
-          gap: 0.75rem;
-          margin-top: 2.8rem;
-        }
-
-        .hero__btn {
-          display: inline-block;
-          padding: 0.65rem 1.6rem;
-          font-size: 0.85rem;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          border-radius: 5px;
-          transition: opacity 0.2s, background 0.2s, border-color 0.2s;
-          text-decoration: none;
-        }
-
-        .hero__btn--primary {
-          background: var(--text);
-          color: var(--bg);
-        }
-        .hero__btn--primary:hover {
-          opacity: 0.8;
-        }
-
-        .hero__btn--ghost {
-          border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
-          color: color-mix(in srgb, var(--text) 70%, transparent);
-        }
-        .hero__btn--ghost:hover {
-          background: color-mix(in srgb, var(--text) 5%, transparent);
-          border-color: color-mix(in srgb, var(--text) 30%, transparent);
-          color: var(--text);
-        }
-      `}</style>
+      <MascotShelf />
     </section>
+  );
+}
+
+/** The pipeline as a shelf: one plush per stage, standing in order. */
+function MascotShelf() {
+  return (
+    <figure className="w-full" aria-label="Vera's four steps: upload, profile, explore, model">
+      <div className="grid grid-cols-4 items-end gap-2 sm:gap-4">
+        {STAGE_ORDER.map((key, i) => (
+          <img
+            key={key}
+            src={STAGES[key].mascot}
+            alt={STAGES[key].alt}
+            className="mascot-land mx-auto w-full max-w-[150px] select-none drop-shadow-[0_14px_14px_rgba(30,36,82,0.18)]"
+            style={{ animationDelay: `${SHELF_DRAW_MS + i * LAND_GAP_MS}ms` }}
+            draggable="false"
+          />
+        ))}
+      </div>
+
+      <div className="shelf-draw h-[6px] rounded-full bg-[var(--text)]" style={{ animationDuration: `${SHELF_DRAW_MS}ms` }} />
+
+      <figcaption className="mt-4 grid grid-cols-4 gap-2 sm:gap-4">
+        {STAGE_ORDER.map((key) => (
+          <span key={key} className="flex items-center justify-center gap-2 text-sm font-semibold sm:text-base">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: STAGES[key].color }} aria-hidden="true" />
+            {STAGES[key].label}
+          </span>
+        ))}
+      </figcaption>
+    </figure>
   );
 }

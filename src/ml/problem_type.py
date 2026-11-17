@@ -16,11 +16,11 @@ def detect_problem_type(series: pd.Series) -> str:
     """Return 'classification' or 'regression' for the given target column.
 
     Rules (in order):
-      - bool / object / categorical        classification
-      - float                              regression
-      - int, <= CLASS_UNIQUE_MAX uniques   classification
-      - int, more uniques                  regression
-      - anything else                      classification (safe default)
+      - bool / text / categorical                       classification
+      - whole numbers (int, or floats like 0.0 / 1.0)
+        with <= CLASS_UNIQUE_MAX distinct values        classification
+      - any other number                                regression
+      - anything else                                   classification (safe default)
     """
     dtype = series.dtype
     n_unique = int(series.nunique())
@@ -28,13 +28,14 @@ def detect_problem_type(series: pd.Series) -> str:
     if (
         pd.api.types.is_bool_dtype(dtype)
         or pd.api.types.is_object_dtype(dtype)
+        or pd.api.types.is_string_dtype(dtype)
         or isinstance(dtype, pd.CategoricalDtype)
     ):
         problem = "classification"
-    elif pd.api.types.is_float_dtype(dtype):
-        problem = "regression"
-    elif pd.api.types.is_integer_dtype(dtype):
-        problem = "classification" if n_unique <= CLASS_UNIQUE_MAX else "regression"
+    elif pd.api.types.is_numeric_dtype(dtype):
+        values = series.dropna()
+        whole_numbers = (values == values.round()).all()
+        problem = "classification" if whole_numbers and n_unique <= CLASS_UNIQUE_MAX else "regression"
     else:
         problem = "classification"
 

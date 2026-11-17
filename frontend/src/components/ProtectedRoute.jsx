@@ -61,8 +61,8 @@ export default function ProtectedRoute({ children }) {
   }
   if (status === "checking") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0d1117]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-[#c97539]" />
+      <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Checking your session">
+        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-[var(--line)] border-t-[var(--sky)]" />
       </div>
     );
   }

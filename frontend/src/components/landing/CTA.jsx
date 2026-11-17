@@ -1,26 +1,27 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Mascot } from "../brand/Brand";
+import { STAGE_ORDER } from "../brand/stages";
 
 export default function CTA() {
   return (
-    <section className="px-6 py-40 text-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, margin: "-50px" }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
-        <h2 className="text-6xl sm:text-8xl font-extrabold tracking-tight">Begin.</h2>
-        <p className="mt-6 text-xl sm:text-2xl text-[var(--muted)]">
-          Start with a free upload. No credit card required.
-        </p>
+    <section className="px-4 pb-24 sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-3xl bg-[var(--text)] px-8 py-12 text-[var(--bg)] sm:px-12 md:flex-row md:items-center">
+        <div className="flex -space-x-3" aria-hidden="true">
+          {STAGE_ORDER.map((key) => (
+            <Mascot key={key} stage={key} size={72} />
+          ))}
+        </div>
+        <div className="md:mr-auto">
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Your first chart is one upload away.</h2>
+          <p className="mt-2 text-lg opacity-80">Create a free account and bring any CSV.</p>
+        </div>
         <Link
           to="/signup"
-          className="mt-12 inline-block rounded-md bg-[var(--text)] px-10 py-4 font-bold text-[var(--bg)] transition hover:opacity-80 text-lg"
+          className="self-start rounded-full bg-[var(--bg)] px-7 py-3.5 text-base font-bold text-[var(--text)] transition-opacity hover:opacity-90 md:self-center"
         >
-          Upload Your First Dataset
+          Create a free account
         </Link>
-      </motion.div>
+      </div>
     </section>
   );
 }

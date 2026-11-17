@@ -28,6 +28,7 @@ ChartJS.register(
   Legend,
   Filler
 );
+ChartJS.defaults.font.family = "'Atkinson Hyperlegible Next', system-ui, sans-serif";
 
 // Backend chart_type → react-chartjs-2 component (unknown types fall back to Bar).
 const CHARTS = {
@@ -42,22 +43,24 @@ const CHARTS = {
   bubble: Bubble,
 };
 
+// Vera's mascot colours (violet first: charts live on the EDA stage), then navy and coral.
+// Light-theme shades are deeper so bars keep contrast against the paper background.
 const PALETTES = {
   dark: [
-    'rgba(234, 179, 8, 1)',   // Gold
-    'rgba(74, 222, 128, 1)',  // Mint Green
-    'rgba(96, 165, 250, 1)',  // Light Blue
-    'rgba(248, 113, 113, 1)', // Soft Red
-    'rgba(192, 132, 252, 1)', // Purple
-    'rgba(251, 146, 60, 1)'   // Orange
+    'rgba(176, 114, 230, 1)', // violet
+    'rgba(47, 143, 230, 1)',  // sky
+    'rgba(245, 196, 0, 1)',   // sun
+    'rgba(155, 209, 46, 1)',  // lime
+    'rgba(243, 240, 232, 1)', // chalk
+    'rgba(255, 138, 128, 1)'  // coral
   ],
   light: [
-    'rgba(245, 158, 11, 1)',  // Vibrant Amber
-    'rgba(16, 185, 129, 1)',  // Vibrant Emerald
-    'rgba(59, 130, 246, 1)',  // Vibrant Blue
-    'rgba(239, 68, 68, 1)',   // Vibrant Red
-    'rgba(168, 85, 247, 1)',  // Vibrant Purple
-    'rgba(249, 115, 22, 1)'   // Vibrant Orange
+    'rgba(140, 62, 200, 1)',  // violet
+    'rgba(31, 117, 204, 1)',  // sky
+    'rgba(214, 168, 0, 1)',   // sun
+    'rgba(110, 160, 24, 1)',  // lime
+    'rgba(30, 36, 82, 1)',    // felt navy
+    'rgba(226, 92, 80, 1)'    // coral
   ]
 };
 
@@ -86,8 +89,8 @@ export default function AestheticChart({ data, height = "400px" }) {
   const ChartComponent = CHARTS[type] || Bar;
   const isLineLike = LINE_LIKE.includes(type);
 
-  const textColor = isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(17, 20, 29, 0.8)';
-  const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(17, 20, 29, 0.08)';
+  const textColor = isDark ? 'rgba(243, 240, 232, 0.8)' : 'rgba(30, 36, 82, 0.85)';
+  const gridColor = isDark ? 'rgba(243, 240, 232, 0.08)' : 'rgba(30, 36, 82, 0.08)';
   const palette = isDark ? PALETTES.dark : PALETTES.light;
   const fills = palette.map(c => c.replace('1)', isDark ? '0.7)' : '0.85)'));
   const shapeBorder = isDark ? 'transparent' : 'rgba(255,255,255,0.5)';
@@ -98,7 +101,7 @@ export default function AestheticChart({ data, height = "400px" }) {
     borderColor: isLineLike ? palette[0] : SOLID_SHAPES.includes(type) ? shapeBorder : palette,
     borderWidth: type === 'bar' || type === 'histogram' ? 0 : 2,
     pointBackgroundColor: palette,
-    pointBorderColor: isDark ? 'transparent' : 'rgba(255,255,255,0.2)',
+    pointBorderColor: isDark ? 'transparent' : 'rgba(255,255,255,0.6)',
     pointRadius: 4,
     pointHoverRadius: 6,
     fill: isLineLike,
@@ -115,11 +118,11 @@ export default function AestheticChart({ data, height = "400px" }) {
         labels: { color: textColor, usePointStyle: true, boxWidth: 8 }
       },
       tooltip: {
-        backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
-        titleColor: isDark ? '#fff' : '#000',
-        bodyColor: isDark ? '#ccc' : '#333',
-        titleFont: { size: 14, family: 'Manrope' },
-        bodyFont: { size: 13, family: 'JetBrains Mono' },
+        backgroundColor: isDark ? 'rgba(29, 27, 25, 0.96)' : 'rgba(255, 255, 255, 0.97)',
+        titleColor: isDark ? '#f3f0e8' : '#1e2452',
+        bodyColor: isDark ? '#b5aea2' : '#565d86',
+        titleFont: { size: 14, family: 'Atkinson Hyperlegible Next', weight: 'bold' },
+        bodyFont: { size: 13, family: 'Atkinson Hyperlegible Mono' },
         padding: 12,
         cornerRadius: 8,
         displayColors: false,
@@ -144,7 +147,7 @@ function chartScales(type, textColor, gridColor, isDark) {
   }
   if (type === 'radar' || type === 'polararea') {
     // More visible grid lines specifically for radial charts
-    const radialGrid = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(17, 20, 29, 0.25)';
+    const radialGrid = isDark ? 'rgba(243, 240, 232, 0.25)' : 'rgba(30, 36, 82, 0.25)';
     return {
       x: { display: false },
       y: { display: false },
@@ -152,7 +155,7 @@ function chartScales(type, textColor, gridColor, isDark) {
         ticks: { color: textColor, backdropColor: 'transparent', z: 10 },
         grid: { color: radialGrid },
         angleLines: { color: radialGrid },
-        pointLabels: { color: textColor, font: { family: 'JetBrains Mono', size: 12, weight: 'bold' } }
+        pointLabels: { color: textColor, font: { family: 'Atkinson Hyperlegible Next', size: 12, weight: 'bold' } }
       }
     };
   }
@@ -163,7 +166,8 @@ function chartScales(type, textColor, gridColor, isDark) {
     };
   }
   return {
-    x: { ticks: { color: textColor }, grid: { color: gridColor, drawBorder: false } },
+    // Skip crowded labels and keep the angle shallow so narrow screens stay readable.
+    x: { ticks: { color: textColor, autoSkip: true, autoSkipPadding: 8, maxRotation: 45 }, grid: { color: gridColor, drawBorder: false } },
     y: { ticks: { color: textColor }, grid: { color: gridColor, drawBorder: false } }
   };
 }

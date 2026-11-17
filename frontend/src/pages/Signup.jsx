@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api, { saveSession } from "../api/client";
-import AuthLayout, { AuthFields, AuthError } from "../components/auth/AuthLayout";
+import AuthLayout, { AuthFields, AuthError, AuthSubmit } from "../components/auth/AuthLayout";
 import GoogleAuthButton from "../components/auth/GoogleAuthButton";
 import validateCredentials from "../components/auth/validateCredentials";
 
 const fields = [
-  { name: "email", type: "text", label: "Email address", placeholder: "you@example.com" },
-  { name: "password", type: "password", label: "Password", placeholder: "min 6 characters" },
-  { name: "confirm_password", type: "password", label: "Confirm password", placeholder: "re-enter password" },
+  { name: "email", type: "email", label: "Email address", placeholder: "you@example.com", autoComplete: "email" },
+  { name: "password", type: "password", label: "Password", placeholder: "At least 6 characters", autoComplete: "new-password" },
+  { name: "confirm_password", type: "password", label: "Confirm password", placeholder: "Type it again", autoComplete: "new-password" },
 ];
 
 export default function Signup() {
@@ -41,49 +41,43 @@ export default function Signup() {
       saveSession(res.data);
       navigate("/upload");
     } catch (err) {
-      setError(err.response?.data?.detail || "Signup failed");
+      setError(err.response?.data?.detail || "Couldn't reach Vera. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthLayout title="Create account." subtitle="Join Vera and start analyzing your data.">
-      <form onSubmit={submit} className="space-y-6">
+    <AuthLayout title="Create your account" subtitle="Free, and you can upload your first CSV right after.">
+      <form onSubmit={submit} noValidate className="space-y-5">
         <AuthFields fields={fields} form={form} onChange={handle} />
         <AuthError message={error} />
 
-        <div className="flex items-start gap-3 mt-4">
+        <div className="flex items-start gap-3">
           <input
             type="checkbox"
             id="consent"
             name="consent"
             checked={form.consent || false}
             onChange={(e) => setForm({ ...form, consent: e.target.checked })}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-[var(--text)]/[0.2] bg-[var(--text)]/[0.05] text-[var(--text)] focus:ring-[var(--text)]"
+            className="mt-1 h-4 w-4 shrink-0 accent-[var(--sky-ink)]"
           />
-          <label htmlFor="consent" className="text-sm text-[var(--muted)] leading-relaxed">
+          <label htmlFor="consent" className="text-[15px] text-[var(--muted)] leading-relaxed">
             I agree to the{" "}
-            <Link to="/terms-of-service" className="text-[var(--text)] underline hover:opacity-80">Terms of Service</Link>
+            <Link to="/terms-of-service" className="text-[var(--text)] underline underline-offset-2">Terms of Service</Link>
             {" "}and{" "}
-            <Link to="/privacy-policy" className="text-[var(--text)] underline hover:opacity-80">Privacy Policy</Link>.
+            <Link to="/privacy-policy" className="text-[var(--text)] underline underline-offset-2">Privacy Policy</Link>.
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 w-full rounded-xl bg-[var(--text)] py-4 text-base font-bold text-[var(--bg)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Creating Account..." : "Create Account"}
-        </button>
+        <AuthSubmit loading={loading} loadingText="Creating account…">Create account</AuthSubmit>
       </form>
 
-      <GoogleAuthButton failMessage="Google Signup failed" setError={setError} setLoading={setLoading} />
+      <GoogleAuthButton failMessage="Google sign-up didn't finish. Try again." setError={setError} setLoading={setLoading} />
 
       <p className="mt-8 text-center text-sm text-[var(--muted)]">
         Already have an account?{" "}
-        <Link to="/login" className="font-bold text-[var(--text)] hover:underline transition-all">
+        <Link to="/login" className="font-bold text-[var(--text)] underline underline-offset-4">
           Log in
         </Link>
       </p>

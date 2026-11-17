@@ -21,28 +21,17 @@ SYSTEM_PROMPT = (PROMPTS_DIR / "feature_engineering.md").read_text(encoding="utf
 
 
 def _heuristic_plan(df: pd.DataFrame, target_column: str) -> dict:
-    """Dtype/cardinality-based feature plan used when the LLM is unavailable.
+    """Dtype-based feature plan used when the LLM is unavailable.
 
-    Mirrors the rules in SYSTEM_PROMPT: numeric → numeric (ID-like dropped),
-    low-cardinality text → one-hot, high-cardinality text → drop.
+    IDs and free text were already removed by src.ml.cleaning, so numbers stay numeric
+    and every text column is one-hot encoded (rare values are grouped by the encoder).
     """
     plan = {"drop": [], "ordinal": {}, "onehot": [], "numeric": []}
-    n_rows = len(df)
     for col in df.columns:
         if col == target_column:
             continue
-        series = df[col]
-        n_unique = int(series.nunique())
-        if pd.api.types.is_numeric_dtype(series):
-            # Unique-per-row numeric is almost certainly an ID → drop.
-            if n_rows and n_unique == n_rows:
-                plan["drop"].append(col)
-            else:
-                plan["numeric"].append(col)
-        elif n_unique <= 15:
-            plan["onehot"].append(col)
-        else:
-            plan["drop"].append(col)
+        role = "numeric" if pd.api.types.is_numeric_dtype(df[col]) else "onehot"
+        plan[role].append(col)
     return plan
 
 
@@ -94,7 +83,7 @@ def decide_feature_plan(df: pd.DataFrame, target_column: str) -> dict:
         plan.setdefault("onehot", [])
         plan.setdefault("numeric", [])
 
-        # Safety net: any unclassified column → numeric or drop
+        # Safety net: any unclassified column → numeric or one-hot
         all_cols = set(c for c in df.columns if c != target_column)
         classified = (
             set(plan["drop"]) |
@@ -103,10 +92,7 @@ def decide_feature_plan(df: pd.DataFrame, target_column: str) -> dict:
             set(plan["ordinal"].keys())
         )
         for col in all_cols - classified:
-            if df[col].dtype == object:
-                plan["drop"].append(col)
-            else:
-                plan["numeric"].append(col)
+            plan["numeric" if pd.api.types.is_numeric_dtype(df[col]) else "onehot"].append(col)
 
         logging.info("Feature plan: %s", plan)
         return plan

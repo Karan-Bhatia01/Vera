@@ -1,11 +1,11 @@
 """
 preprocessing.py
 ================
-Turn a raw DataFrame + a feature plan into model-ready train/test arrays.
+Turn a cleaned DataFrame + a feature plan into model-ready train/test arrays.
 
-Steps: drop planned columns → split features/target → encode target →
-assign each feature to numeric / ordinal / one-hot (validated against real
-dtypes) → cap one-hot feature explosion → ColumnTransformer → train/test split.
+Steps: drop planned columns → drop rows the target can't use → encode the target →
+assign each feature to numeric / ordinal / one-hot (checked against real dtypes) →
+ColumnTransformer → train/test split.
 """
 
 from __future__ import annotations
@@ -13,20 +13,19 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import (
-    StandardScaler, OrdinalEncoder, OneHotEncoder, LabelEncoder,
-)
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, OrdinalEncoder, StandardScaler
 
 from src.logger import logging
 
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
-_MAX_ONEHOT_FEATURES = 50   # cap to avoid memory blow-up from high-cardinality cols
-_AUTO_ONEHOT_MAX_CARD = 10  # unplanned object cols above this are dropped, not encoded
+MIN_ROWS = 20
+MAX_CLASSES = 100
+MAX_CATEGORIES = 20  # one-hot keeps the most common values and groups the rest as "infrequent"
 
 
 def build_splits(
@@ -36,82 +35,37 @@ def build_splits(
     problem_type: str,
 ):
     """Return (X_train, X_test, y_train, y_test, feature_names, label_encoder)."""
-    df = df.copy()
-
-    drop_cols = [c for c in plan.get("drop", []) if c in df.columns]
-    df.drop(columns=drop_cols, inplace=True)
+    drop_cols = [c for c in plan.get("drop", []) if c in df.columns and c != target_column]
+    df = df.drop(columns=drop_cols)
     logging.info("Dropped columns: %s", drop_cols)
 
-    # Rows with a missing target can't be learned from or scored — drop them
-    # up front so they never reach train_test_split / model.fit().
-    missing_target = df[target_column].isna().sum()
-    if missing_target:
-        df = df[df[target_column].notna()].copy()
-        logging.warning("Dropped %d rows with a missing target value.", missing_target)
-    if df.empty:
-        raise ValueError(
-            f"Every row has a missing value in target column '{target_column}' — "
-            "nothing left to train on."
-        )
-
+    df = _usable_rows(df, target_column, problem_type)
     X = df.drop(columns=[target_column])
-    y = df[target_column].copy()
+    y = df[target_column]
 
-    # Encode a categorical target to integer labels.
+    # Class labels become 0..n-1, which every model (XGBoost included) accepts.
     label_encoder = None
-    if problem_type == "classification" and y.dtype == object:
+    if problem_type == "classification":
         label_encoder = LabelEncoder()
-        y = label_encoder.fit_transform(y)
+        y = label_encoder.fit_transform(y.astype(str))
 
     numeric_cols, ordinal_cols, onehot_cols, ordinal_categories = _assign_roles(X, plan)
-
     if not (numeric_cols or ordinal_cols or onehot_cols):
         raise ValueError(
-            "No usable feature columns remained after preprocessing — every column "
-            "was dropped (high-cardinality text, all-null, or only the target left). "
-            "Check the dataset and the feature plan's 'drop' list."
+            "No usable feature columns are left. Every column was either dropped as an ID, "
+            "free text or mostly empty, or only the target remained."
         )
 
-    # Each branch imputes first so missing values never reach the model — the
-    # most common reason every model would otherwise fail to fit (NaN in X).
-    transformers = []
-    if numeric_cols:
-        transformers.append((
-            "num",
-            Pipeline([
-                ("impute", SimpleImputer(strategy="median")),
-                ("scale", StandardScaler()),
-            ]),
-            numeric_cols,
-        ))
-    if ordinal_cols:
-        transformers.append((
-            "ord",
-            Pipeline([
-                ("impute", SimpleImputer(strategy="most_frequent")),
-                ("encode", OrdinalEncoder(categories=ordinal_categories,
-                                          handle_unknown="use_encoded_value",
-                                          unknown_value=-1, dtype=float)),
-            ]),
-            ordinal_cols,
-        ))
-    if onehot_cols:
-        transformers.append((
-            "ohe",
-            Pipeline([
-                ("impute", SimpleImputer(strategy="most_frequent")),
-                ("encode", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-            ]),
-            onehot_cols,
-        ))
-    preprocessor = ColumnTransformer(transformers, remainder="drop")
+    # Categories are compared as text; a missing value is just another category.
+    categorical = ordinal_cols + onehot_cols
+    if categorical:
+        X[categorical] = X[categorical].astype(object).fillna("missing").astype(str)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y if problem_type == "classification" else None,
+    preprocessor = ColumnTransformer(
+        _transformers(numeric_cols, ordinal_cols, onehot_cols, ordinal_categories),
+        remainder="drop",
     )
+    X_train, X_test, y_train, y_test = _split(X, y, problem_type)
     logging.info(
         "Preprocessing roles: numeric=%d, ordinal=%d, onehot=%d",
         len(numeric_cols), len(ordinal_cols), len(onehot_cols),
@@ -119,7 +73,6 @@ def build_splits(
 
     X_train = preprocessor.fit_transform(X_train)
     X_test = preprocessor.transform(X_test)
-
     try:
         feature_names = preprocessor.get_feature_names_out().tolist()
     except Exception:
@@ -130,80 +83,90 @@ def build_splits(
     return X_train, X_test, y_train, y_test, feature_names, label_encoder
 
 
+def _usable_rows(df: pd.DataFrame, target: str, problem_type: str) -> pd.DataFrame:
+    """Drop rows without a target, and classes too small to learn from. Raise if nothing sensible is left."""
+    missing = int(df[target].isna().sum())
+    if missing:
+        df = df[df[target].notna()]
+        logging.warning("Dropped %d rows with a missing target value.", missing)
+
+    if problem_type == "classification":
+        if df[target].nunique() > MAX_CLASSES:
+            raise ValueError(
+                f"Target column '{target}' has more than {MAX_CLASSES} different values. "
+                "It looks like an identifier or free text; pick a column with fewer categories."
+            )
+        counts = df[target].value_counts()
+        rare = counts[counts < 2].index
+        if len(rare):
+            df = df[~df[target].isin(rare)]
+            logging.warning("Dropped classes with a single row: %s", list(rare))
+
+    if len(df) < MIN_ROWS:
+        raise ValueError(f"Only {len(df)} usable rows remain; at least {MIN_ROWS} are needed to train.")
+    if df[target].nunique() < 2:
+        raise ValueError(f"Target column '{target}' has only one value, so there is nothing to predict.")
+    return df
+
+
 def _assign_roles(X: pd.DataFrame, plan: dict[str, Any]):
-    """Bucket each feature column into numeric / ordinal / one-hot.
+    """Bucket each feature into numeric / ordinal / one-hot.
 
-    Trusts the plan but validates against real dtypes, so a text column the
-    LLM mislabelled as numeric can never reach StandardScaler.
-    Mutates `X` in place when dropping unusable columns.
+    Trusts the plan, but checks it against real dtypes: a text column the LLM called
+    numeric is one-hot encoded instead, so it can never reach StandardScaler.
     """
-    ordinal_cols = [c for c in plan.get("ordinal", {}) if c in X.columns]
-    onehot_cols = [c for c in plan.get("onehot", []) if c in X.columns]
-    numeric_cols = [c for c in plan.get("numeric", []) if c in X.columns]
+    ordinal_plan = plan.get("ordinal") or {}
+    planned_onehot = set(plan.get("onehot") or [])
+    numeric, ordinal, onehot = [], [], []
 
-    # Infer roles for any column the plan didn't mention.
-    planned = set(ordinal_cols + onehot_cols + numeric_cols)
-    for col in list(X.columns):
-        if col in planned:
-            continue
-        if X[col].dtype == object:
-            if X[col].nunique() <= _AUTO_ONEHOT_MAX_CARD:
-                onehot_cols.append(col)
-            else:
-                X.drop(columns=[col], inplace=True)  # high-cardinality text → drop
+    for col in X.columns:
+        is_number = pd.api.types.is_numeric_dtype(X[col]) and not pd.api.types.is_bool_dtype(X[col])
+        if not is_number and isinstance(ordinal_plan.get(col), list):
+            ordinal.append(col)
+        elif is_number and col not in planned_onehot:
+            numeric.append(col)
         else:
-            numeric_cols.append(col)
+            onehot.append(col)
 
-    # Guard: a column the plan called numeric that isn't actually numeric would
-    # crash StandardScaler (float('Petrol')). Reroute it instead.
-    validated_numeric = []
-    for col in numeric_cols:
-        if col not in X.columns:
-            continue
-        if pd.api.types.is_numeric_dtype(X[col]):
-            validated_numeric.append(col)
-        elif X[col].nunique() <= _AUTO_ONEHOT_MAX_CARD:
-            onehot_cols.append(col)
-            logging.warning("Column '%s' planned numeric but is text — routing to one-hot.", col)
-        else:
-            X.drop(columns=[col], inplace=True)
-            logging.warning("Column '%s' planned numeric but is high-cardinality text — dropping.", col)
-    numeric_cols = validated_numeric
-
-    onehot_cols = _cap_onehot([c for c in dict.fromkeys(onehot_cols) if c in X.columns], X)
-    ordinal_cols = [c for c in ordinal_cols if c in X.columns]
-    ordinal_categories = _ordinal_categories(ordinal_cols, plan)
-
-    return numeric_cols, ordinal_cols, onehot_cols, ordinal_categories
+    # Explicit order from the plan, as text, without duplicates (OrdinalEncoder rejects repeats).
+    ordinal_categories = [list(dict.fromkeys(str(v) for v in ordinal_plan[col])) for col in ordinal]
+    return numeric, ordinal, onehot, ordinal_categories
 
 
-def _cap_onehot(onehot_cols: list[str], X: pd.DataFrame) -> list[str]:
-    """Keep lowest-cardinality one-hot columns so total features stay bounded."""
-    total = sum(X[c].nunique() for c in onehot_cols)
-    if total <= _MAX_ONEHOT_FEATURES:
-        return onehot_cols
+def _transformers(numeric_cols, ordinal_cols, onehot_cols, ordinal_categories):
+    transformers = []
+    if numeric_cols:
+        transformers.append((
+            "num",
+            Pipeline([
+                # add_indicator: "was this value missing?" is often a useful signal on its own.
+                ("impute", SimpleImputer(strategy="median", add_indicator=True)),
+                ("scale", StandardScaler()),
+            ]),
+            numeric_cols,
+        ))
+    if ordinal_cols:
+        transformers.append((
+            "ord",
+            OrdinalEncoder(categories=ordinal_categories, handle_unknown="use_encoded_value",
+                           unknown_value=-1, dtype=float),
+            ordinal_cols,
+        ))
+    if onehot_cols:
+        transformers.append((
+            "ohe",
+            OneHotEncoder(handle_unknown="infrequent_if_exist", max_categories=MAX_CATEGORIES,
+                          sparse_output=False),
+            onehot_cols,
+        ))
+    return transformers
 
-    logging.warning("One-hot would create %d features — capping to %d.",
-                    total, _MAX_ONEHOT_FEATURES)
-    kept, cumulative = [], 0
-    for col, card in sorted(((c, X[c].nunique()) for c in onehot_cols), key=lambda t: t[1]):
-        if cumulative + card <= _MAX_ONEHOT_FEATURES:
-            kept.append(col)
-            cumulative += card
-        else:
-            X.drop(columns=[col], inplace=True)
-            logging.warning("Dropping one-hot column '%s' (%d uniques) to save memory.", col, card)
-    return kept
 
-
-def _ordinal_categories(ordinal_cols: list[str], plan: dict[str, Any]):
-    """Build sklearn's `categories` arg: explicit orders where given, else 'auto'."""
-    categories, has_explicit = [], False
-    for col in ordinal_cols:
-        cats = plan.get("ordinal", {}).get(col, "auto")
-        if isinstance(cats, list):
-            categories.append(cats)
-            has_explicit = True
-        else:
-            categories.append(None)
-    return categories if has_explicit else "auto"
+def _split(X, y, problem_type: str):
+    """80/20 split, stratified for classification whenever every class can be represented."""
+    if problem_type == "classification":
+        try:
+            return train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y)
+        except ValueError:
+            logging.warning("Too few rows per class to stratify; using a plain random split.")
+    return train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)

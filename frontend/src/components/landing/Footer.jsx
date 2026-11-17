@@ -1,21 +1,21 @@
 import { Link } from "react-router-dom";
+import { BrandMark } from "../brand/Brand";
+import ConnectionStatus from "../ConnectionStatus";
 
 export default function Footer() {
   return (
-    <footer className="px-6 py-12 border-t border-[var(--text)]/[0.08]">
-      <div className="mx-auto max-w-5xl flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-2">
-          <span className="font-extrabold text-2xl tracking-tight">Vera.</span>
-          <p className="text-sm font-mono text-[var(--muted)]">
-            © {new Date().getFullYear()} Karan Bhatia. All rights reserved.
-          </p>
+    <footer className="border-t border-[var(--line)]">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-center">
+        <div className="md:mr-auto">
+          <BrandMark />
+          <p className="mt-2 text-sm text-[var(--muted)]">© {new Date().getFullYear()} Karan Bhatia. All rights reserved.</p>
         </div>
-        
-        <div className="flex flex-wrap gap-4 text-sm font-medium text-[var(--muted)]">
-          <Link to="/privacy-policy" className="hover:text-[var(--text)] transition-colors">Privacy Policy</Link>
-          <Link to="/terms-of-service" className="hover:text-[var(--text)] transition-colors">Terms of Service</Link>
-          <Link to="/cookie-policy" className="hover:text-[var(--text)] transition-colors">Cookie Policy</Link>
-        </div>
+        <ConnectionStatus />
+        <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--muted)]" aria-label="Legal">
+          <Link to="/privacy-policy" className="hover:text-[var(--text)] transition-colors">Privacy policy</Link>
+          <Link to="/terms-of-service" className="hover:text-[var(--text)] transition-colors">Terms of service</Link>
+          <Link to="/cookie-policy" className="hover:text-[var(--text)] transition-colors">Cookie policy</Link>
+        </nav>
       </div>
     </footer>
   );

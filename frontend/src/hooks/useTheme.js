@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 /** Dark/light theme persisted in localStorage and applied as <html data-theme>. */
 export default function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("app-theme") || "dark");
+  const [theme, setTheme] = useState(() => localStorage.getItem("app-theme") || "light");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

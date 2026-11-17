@@ -26,7 +26,7 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    print("🚀 Vera Flask API running")
+    print("Vera Flask API running")
     print("Local URL: http://127.0.0.1:5000")
     print("Health check: http://127.0.0.1:5000/api/health")
     app.run(host="0.0.0.0", port=5000, debug=False)

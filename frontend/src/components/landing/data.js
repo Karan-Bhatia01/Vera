@@ -1,64 +1,7 @@
 export const navLinks = [
-  { label: "Home", href: "/#" },
-  { label: "Engine", href: "/#pipeline" },
-  { label: "Features", href: "/#features" },
+  { label: "How it works", href: "/#how" },
   { label: "FAQ", href: "/#faq" },
 ];
-
-export const stats = [
-  { value: "3", label: "STAGES" },
-  { value: "3–5", label: "MODELS" },
-  { value: "10", label: "AI CHARTS" },
-  { value: "25K", label: "ROW LIMIT" },
-];
-
-export const pipelineSteps = [
-  {
-    n: "01",
-    title: "Ingest",
-    body: "Drop a CSV. Vera profiles every column, infers types, and flags quality issues before anything else runs.",
-  },
-  {
-    n: "02",
-    title: "Clean & Transform",
-    body: "Missing values are filled and categories encoded automatically, with the AI choosing a strategy for each column.",
-  },
-  {
-    n: "03",
-    title: "Train & Compare",
-    body: "An AI-picked shortlist of 3–5 models, each trained and scored on a held-out test split.",
-  },
-  {
-    n: "04",
-    title: "Explain",
-    body: "Feature importance for the best model, plus a plain-English AI summary of what the results mean.",
-  },
-];
-
-export const features = [
-  {
-    icon: "📊",
-    title: "Smart Analysis",
-    body: "AI-powered data understanding. Vera analyzes your dataset, identifies patterns, and flags quality issues automatically.",
-  },
-  {
-    icon: "⚙️",
-    title: "Auto ML",
-    body: "End-to-end preprocessing and model training. From feature engineering to model selection, Vera handles it all.",
-  },
-  {
-    icon: "📈",
-    title: "Visual Insights",
-    body: "Automatic visualizations with AI-generated explanations for every chart, pattern, and anomaly.",
-  },
-  {
-    icon: "🎯",
-    title: "Model Comparison",
-    body: "Compare models head-to-head on accuracy, F1, R² and feature importance.",
-  },
-];
-
-export const faqSubtitle = "Questions About an AutoML Tool. Ask Away.";
 
 export const faqs = [
   {
@@ -77,7 +20,7 @@ export const faqs = [
     q: "What if I find a bug?",
     a: "Tell us. Bugs are just surprise features we didn't ask for.",
   },
-    {
+  {
     q: "Can Vera help me impress my crush?",
     a: "Absolutely! Just casually mention your model's F1 score and watch the sparks fly. Or not. No guarantees.",
   },

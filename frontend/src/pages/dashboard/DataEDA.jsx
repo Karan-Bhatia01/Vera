@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePipeline } from "../../context/PipelineContext";
 import AestheticChart from "../../components/charts/AestheticChart";
+import { Mascot, PageHeader } from "../../components/brand/Brand";
 
 export default function DataEDA() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function DataEDA() {
       <Empty
         message="No dataset selected."
         onAction={() => navigate("/upload")}
-        actionLabel="Go to Upload"
+        actionLabel="Open Upload"
       />
     );
 
@@ -33,18 +34,17 @@ export default function DataEDA() {
   if (!hasEdaJob && !eda)
     return (
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Data EDA</h1>
-        <div className="mt-8 surface border-2 border-[var(--text)]/[0.1] rounded-3xl p-12 text-center bg-[var(--text)]/[0.015]">
-          <p className="text-4xl mb-4">📊</p>
-          <p className="text-xl font-bold mb-2">Submit the pipeline first</p>
-          <p className="text-base text-[var(--muted)] mb-8">
-            Go to Dashboard, select your target column, and click Run EDA.
+        <PageHeader stage="eda" title="Data EDA" />
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-10">
+          <p className="text-xl font-bold mb-2">No charts yet</p>
+          <p className="text-base text-[var(--muted)] mb-6 max-w-[56ch]">
+            On the Dashboard, choose the column to predict and select Run analysis. Your charts will appear here.
           </p>
           <button
             onClick={() => navigate("/dashboard")}
-            className="rounded-full bg-[var(--text)] text-[var(--bg)] px-8 py-3 text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+            className="rounded-full bg-[var(--text)] text-[var(--bg)] px-8 py-3 text-sm font-bold transition-all"
           >
-            Go to Dashboard →
+            Open Dashboard
           </button>
         </div>
       </div>
@@ -79,32 +79,28 @@ export default function DataEDA() {
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Data EDA</h1>
-          <p className="mt-2 text-lg text-[var(--muted)]">
-            AI Curated Visualizations for{" "}
-            <span className="text-[var(--text)] font-semibold">{filename}</span>
-          </p>
-        </div>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <PageHeader stage="eda" title="Data EDA">Charts picked by the AI for {filename}</PageHeader>
         
         {/* Pagination Controls */}
         {chartList.length > chartsPerPage && !activeChart && (
-          <div className="flex items-center gap-4 bg-[var(--text)]/[0.03] px-4 py-2 rounded-full border border-[var(--text)]/[0.1] mr-14">
+          <div className="flex items-center gap-4 bg-[var(--text)]/[0.03] px-4 py-2 rounded-full border border-[var(--line)] self-start sm:self-auto sm:mr-14">
             <button 
               onClick={handlePrev} 
               disabled={page === 0}
-              className="text-[var(--text)] disabled:opacity-30 hover:scale-110 transition-transform"
+              aria-label="Previous charts"
+              className="text-[var(--text)] disabled:opacity-30"
             >
               ←
             </button>
-            <span className="text-sm font-bold font-mono">
+            <span className="text-sm font-bold font-mono" aria-live="polite">
               {page + 1} / {totalPages}
             </span>
             <button 
               onClick={handleNext} 
               disabled={page === totalPages - 1}
-              className="text-[var(--text)] disabled:opacity-30 hover:scale-110 transition-transform"
+              aria-label="Next charts"
+              className="text-[var(--text)] disabled:opacity-30"
             >
               →
             </button>
@@ -115,7 +111,7 @@ export default function DataEDA() {
       {isRunning && <StatusBar label={eda?.message || "Generating interactive charts…"} />}
       {eda?.status === "failed" && <ErrBar msg={eda.error || "EDA failed"} />}
       {!isRunning && !chartsData && hasEdaJob && (
-        <StatusBar label="Waiting for results…" />
+        <StatusBar label="Waiting for the results…" />
       )}
 
       {/* Expanded Chart View */}
@@ -128,21 +124,22 @@ export default function DataEDA() {
             ← Back to Grid
           </button>
           <div className="flex flex-col xl:flex-row gap-8">
-            <div className="xl:w-2/3 bg-[var(--text)]/[0.015] border-2 border-[var(--text)]/[0.1] rounded-3xl p-6 sm:p-8">
+            <div className="xl:w-2/3 min-w-0 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4 sm:p-8">
               <div className="mb-6 flex justify-between items-start">
                 <h3 className="text-2xl font-extrabold tracking-tight capitalize">
                   {activeChart.columns ? activeChart.columns.join(' vs ') : 'Chart'}
                 </h3>
-                <span className="px-3 py-1 bg-[var(--text)] text-[var(--bg)] rounded-full text-xs font-bold uppercase tracking-wider">
+                <span className="px-3 py-1 bg-[var(--text)] text-[var(--bg)] rounded-full text-xs font-bold capitalize">
                   {activeChart.chart_type}
                 </span>
               </div>
-              <AestheticChart data={activeChart} height="500px" />
+              <AestheticChart data={activeChart} height="clamp(300px, 60vh, 500px)" />
             </div>
 
-            <div className="xl:w-1/3 bg-[var(--yellow)]/[0.05] border-2 border-[var(--yellow)]/[0.2] rounded-3xl p-6 sm:p-8 overflow-y-auto max-h-[600px]">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-[var(--yellow)] mb-4 sticky top-0 bg-[var(--bg)] py-2">Business & Statistical Insights</h4>
-              <div className="prose prose-sm dark:prose-invert max-w-none mt-4">
+            {/* Fixed heading + scrolling body, so text never slides behind the title */}
+            <div className="xl:w-1/3 flex max-h-[600px] flex-col overflow-hidden rounded-2xl border border-[var(--violet)]/30 bg-[var(--violet)]/[0.06]">
+              <h4 className="shrink-0 border-b border-[var(--violet)]/20 px-6 py-4 font-bold text-[var(--violet-ink)] sm:px-8">What this chart shows</h4>
+              <div className="flex-1 overflow-y-auto px-6 pt-5 pb-2 sm:px-8">
                 {formatStory(activeChart.takeaway)}
               </div>
             </div>
@@ -152,7 +149,7 @@ export default function DataEDA() {
 
       {/* Bento Grid View */}
       {chartList.length > 0 && !activeChart && (
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
           {currentCharts.map((chart, idx) => {
             const isTopRow = idx < 3;
             const colSpan = isTopRow ? "md:col-span-2" : "md:col-span-3";
@@ -162,22 +159,21 @@ export default function DataEDA() {
               <div 
                 key={idx} 
                 onClick={() => setActiveChart(chart)}
-                className={`${colSpan} bg-[var(--text)]/[0.015] border-2 border-[var(--text)]/[0.1] rounded-3xl p-6 cursor-pointer hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col group`}
+                className={`${colSpan} bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 sm:p-6 cursor-pointer min-w-0 transition-all duration-300 flex flex-col group`}
               >
                 <div className="mb-4 flex justify-between items-start">
-                  <h3 className="text-lg font-bold capitalize truncate pr-4 group-hover:text-[var(--yellow)] transition-colors">
+                  <h3 className="text-lg font-bold capitalize truncate pr-4 group-hover:text-[var(--violet-ink)] transition-colors">
                     {titleText}
                   </h3>
-                  <span className="text-[10px] px-2 py-1 bg-[var(--text)]/[0.1] rounded-full uppercase text-[var(--text)] font-bold tracking-wider">
+                  <span className="text-[10px] px-2 py-1 bg-[var(--text)]/[0.1] rounded-full text-xs text-[var(--text)] font-bold capitalize bg-[var(--surface-2)]">
                     {chart.chart_type}
                   </span>
                 </div>
                 <div className="flex-1 w-full flex items-center justify-center">
                    <AestheticChart data={chart} height="220px" />
                 </div>
-                <div className="mt-4 pt-4 border-t-2 border-[var(--text)]/[0.05] flex justify-between items-center transition-colors group-hover:text-[var(--yellow)]">
-                  <span className="text-xs font-bold text-[var(--muted)] group-hover:text-[var(--yellow)]">View Insights</span>
-                  <span>→</span>
+                <div className="mt-4 pt-4 border-t border-[var(--line)] flex justify-between items-center transition-colors group-hover:text-[var(--violet-ink)]">
+                  <span className="text-xs font-bold text-[var(--muted)] group-hover:text-[var(--violet-ink)]">Read the explanation</span>
                 </div>
               </div>
             );
@@ -186,9 +182,12 @@ export default function DataEDA() {
       )}
       
       {!isRunning && chartsData && chartList.length === 0 && (
-         <div className="mt-8 p-12 border-2 border-[var(--text)]/[0.1] rounded-3xl text-center bg-[var(--text)]/[0.015]">
-            <p className="font-bold text-xl mb-2">No Charts Recommended</p>
-            <p className="text-[var(--muted)]">The AI did not find any highly significant visual relationships to plot.</p>
+         <div className="mt-8 flex items-center gap-5 p-8 border border-[var(--line)] rounded-2xl bg-[var(--surface)]">
+            <Mascot stage="eda" size={64} />
+            <div>
+              <p className="font-bold text-xl mb-1">No charts to show</p>
+              <p className="text-[var(--muted)] max-w-[60ch]">The AI didn&apos;t recommend any charts. Make sure Data info finished for this dataset, then run the analysis again from the Dashboard.</p>
+            </div>
          </div>
       )}
     </div>
@@ -196,18 +195,18 @@ export default function DataEDA() {
 }
 
 const StatusBar = ({ label }) => (
-  <div className="mt-8 flex items-center gap-4 rounded-2xl border-2 border-[var(--text)]/[0.1] bg-[var(--text)]/[0.015] px-6 py-5">
+  <div className="mt-8 flex items-center gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-5">
     <Spinner />
-    <p className="text-base text-[var(--text)] font-medium font-mono">
+    <p className="text-base font-semibold">
       {label}
     </p>
   </div>
 );
 
 const ErrBar = ({ msg }) => (
-  <div className="mt-8 rounded-2xl border-2 border-red-500/30 bg-red-500/10 px-6 py-5">
-    <p className="font-mono text-sm text-red-400 font-semibold">
-      ✗ {msg}
+  <div className="mt-8 rounded-2xl border-2 border-[var(--danger)]/30 bg-[var(--danger)]/10 px-6 py-5">
+    <p className="text-[var(--danger)] font-semibold">
+      {msg}
     </p>
   </div>
 );
@@ -218,15 +217,15 @@ const Spinner = () => (
 
 const Empty = ({ message, onAction, actionLabel }) => (
   <div>
-    <h1 className="text-3xl font-extrabold tracking-tight">Data EDA</h1>
-    <div className="mt-8 surface border-2 border-[var(--text)]/[0.1] rounded-3xl p-12 text-center bg-[var(--text)]/[0.015]">
-      <p className="text-base text-[var(--muted)] font-mono mb-6">
+    <PageHeader stage="eda" title="Data EDA" />
+    <div className="mt-8 surface border border-[var(--line)] rounded-2xl p-12 text-center bg-[var(--surface)]">
+      <p className="text-base text-[var(--muted)] mb-6">
         {message}
       </p>
       {onAction && (
         <button
           onClick={onAction}
-          className="rounded-full bg-[var(--text)] text-[var(--bg)] px-8 py-3 text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          className="rounded-full bg-[var(--text)] text-[var(--bg)] px-8 py-3 text-sm font-bold transition-all"
         >
           {actionLabel}
         </button>

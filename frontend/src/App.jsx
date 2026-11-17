@@ -15,14 +15,8 @@ import PrivacyPolicy from "./pages/policies/PrivacyPolicy";
 import TermsOfService from "./pages/policies/TermsOfService";
 import CookiePolicy from "./pages/policies/CookiePolicy";
 
-import { useEffect } from "react";
-
+// The saved theme is applied by an inline script in index.html before first paint.
 function App() {
-  useEffect(() => {
-    const theme = localStorage.getItem("app-theme") || "dark";
-    document.documentElement.dataset.theme = theme;
-  }, []);
-
   return (
     <>
       <CookieConsent />

@@ -1,29 +1,21 @@
-import Background from "./Background";
-import ConnectionStatus from "./ConnectionStatus";
 import Navbar from "./landing/Navbar";
 import Hero from "./landing/Hero";
-import Stats from "./landing/Stats";
-import Pipeline from "./landing/Pipeline";
-import Features from "./landing/Features";
+import HowItWorks from "./landing/HowItWorks";
 import CTA from "./landing/CTA";
 import FAQ from "./landing/FAQ";
 import Footer from "./landing/Footer";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen relative">
-      <Background />
-      <ConnectionStatus />
-      <div className="relative z-10">
-        <Navbar />
+    <div className="min-h-screen">
+      <Navbar />
+      <main>
         <Hero />
-        <Stats />
-        <Pipeline />
-        <Features />
-        <CTA />
+        <HowItWorks />
         <FAQ />
-        <Footer />
-      </div>
+        <CTA />
+      </main>
+      <Footer />
     </div>
   );
 }

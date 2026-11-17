@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import api from "../api/client";
 
 /**
- * A small glassy "Connected" badge fixed to the top-right corner.
- * It polls the backend health endpoint and only renders while the
- * database reports itself as connected — otherwise it shows nothing.
+ * "Service online" line for the footer. Polls the health endpoint and only
+ * renders while the database reports itself as connected.
  */
 export default function ConnectionStatus() {
   const [connected, setConnected] = useState(false);
@@ -32,12 +31,9 @@ export default function ConnectionStatus() {
   if (!connected) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-2)]/90 px-4 py-1.5 text-sm font-medium text-[var(--text)] shadow-xl backdrop-blur-md">
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-      </span>
-      Connected
-    </div>
+    <p className="flex items-center gap-2 text-sm text-[var(--muted)]">
+      <span className="h-2 w-2 rounded-full" style={{ background: "var(--lime)" }} aria-hidden="true" />
+      Service online
+    </p>
   );
 }

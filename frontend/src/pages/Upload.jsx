@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { usePipeline } from "../context/PipelineContext";
+import { Mascot, PageHeader } from "../components/brand/Brand";
 
 const MAX_DATASETS = 3;
 
@@ -111,179 +112,144 @@ export default function Upload() {
 
   const atLimit = datasets.length >= MAX_DATASETS;
 
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (atLimit) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) uploadFile(f);
+  };
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-16 flex flex-col items-center min-h-screen">
-      <header className="text-center mb-16">
-        <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-[var(--text)]">
-          Upload Dataset.
-        </h1>
-        <p className="mt-4 text-[var(--muted)] text-lg">
-          Drop your CSV file to unlock automated model-ready insights.
-        </p>
-      </header>
+    <div>
+      <PageHeader stage="upload" title="Upload a dataset">
+        Add a CSV, then pick the dataset you want to work on.
+      </PageHeader>
 
-      {/* Main Upload Dropzone */}
-      <div className="w-full max-w-2xl relative group mb-16">
-        {/* Subtle border glow on hover */}
-        <div className="absolute -inset-[1px] rounded-[2.5rem] bg-[var(--text)]/[0.06] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-        
-        <div
-          onClick={() => !atLimit && fileInputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            if (!atLimit) setDragActive(true);
+      {/* Dropzone: a <label> around a visually hidden file input, so it works by click, drag and keyboard. */}
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!atLimit) setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={onDrop}
+        className={`relative flex min-h-[260px] flex-col items-center justify-center rounded-3xl border-[3px] border-dashed px-6 py-12 text-center transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-[var(--sky)] ${
+          atLimit
+            ? "cursor-not-allowed border-[var(--line)] opacity-60"
+            : dragActive
+              ? "cursor-copy border-[var(--lime-ink)] bg-[var(--lime)]/15"
+              : "cursor-pointer border-[var(--line)] bg-[var(--surface)] hover:border-[var(--lime-ink)]"
+        }`}
+      >
+        <Mascot stage="upload" size={88} className="mb-4" />
+        <span className="text-2xl font-extrabold tracking-tight">
+          {atLimit ? "Your library is full" : dragActive ? "Drop it here" : "Drop a CSV here, or click to choose one"}
+        </span>
+        <span className="mt-2 text-[var(--muted)]">
+          {atLimit
+            ? `You can keep ${MAX_DATASETS} datasets. Delete one below to upload another.`
+            : "Up to 25,000 rows and 20 columns."}
+        </span>
+
+        {uploading && (
+          <span className="absolute inset-0 flex items-center justify-center rounded-3xl bg-[var(--surface)]/90 text-lg font-bold" role="status">
+            Uploading…
+          </span>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) uploadFile(f);
+            e.target.value = "";
           }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={
-            atLimit
-              ? undefined
-              : (e) => {
-                  e.preventDefault();
-                  setDragActive(false);
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) uploadFile(f);
-                }
-          }
-          className={`relative flex min-h-[320px] w-full flex-col items-center justify-center rounded-[2rem] border border-[var(--text)]/[0.1] bg-[var(--bg)] px-6 py-10 text-center transition-all duration-300 ${
-            atLimit
-              ? "opacity-50 cursor-not-allowed"
-              : dragActive
-                ? "border-[var(--blue)] bg-[var(--blue)]/5 cursor-pointer scale-[1.02]"
-                : "cursor-pointer hover:border-[var(--text)]/[0.3] hover:bg-[var(--text)]/[0.02]"
-          }`}
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--text)]/[0.05] mb-6 transition-transform duration-300 group-hover:scale-110">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text)]">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-          </div>
-          
-          <h3 className="text-2xl font-bold mb-2">
-            {atLimit ? "Storage Full" : "Click or drag CSV here"}
-          </h3>
-          <p className="text-sm text-[var(--muted)] font-mono">
-            {atLimit
-              ? `You have reached the ${MAX_DATASETS} dataset limit.`
-              : "Max 25,000 rows · 20 columns"}
+          disabled={atLimit || uploading}
+        />
+      </label>
+
+      <div className="mt-4 min-h-[3rem]" aria-live="polite">
+        {error && (
+          <p role="alert" className="rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 font-semibold text-[var(--danger)]">
+            {error}
           </p>
-
-          {uploading && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-[2rem] bg-[var(--bg)]/80 backdrop-blur-sm">
-              <p className="font-mono text-sm font-bold animate-pulse text-[var(--blue)]">
-                Uploading...
-              </p>
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) uploadFile(f);
-              e.target.value = "";
-            }}
-            disabled={atLimit}
-          />
-        </div>
-        
-        {/* Alerts */}
-        <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
-          {error && (
-            <p className="rounded-full border border-red-500/20 bg-red-500/10 px-6 py-2 text-sm text-red-400 font-medium animate-in fade-in slide-in-from-bottom-2">
-              {error}
-            </p>
-          )}
-          {success && (
-            <p className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-6 py-2 text-sm text-emerald-400 font-medium animate-in fade-in slide-in-from-bottom-2">
-              {success}
-            </p>
-          )}
-        </div>
+        )}
+        {success && (
+          <p className="rounded-xl border border-[var(--lime-ink)]/30 bg-[var(--lime)]/15 px-4 py-3 font-semibold text-[var(--lime-ink)]">
+            {success}
+          </p>
+        )}
       </div>
 
-      {/* Dataset Selection */}
-      <div className="w-full max-w-3xl mt-8 rounded-[2rem] border border-[var(--text)]/[0.1] bg-[var(--text)]/[0.02] p-8 sm:p-10">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold">Your Library</h2>
-            <p className="text-sm text-[var(--muted)] mt-1">Select a dataset to begin analysis</p>
-          </div>
-          <span className="mt-4 sm:mt-0 inline-flex items-center rounded-full bg-[var(--text)]/[0.05] px-4 py-1.5 text-xs font-bold font-mono text-[var(--text)]">
-            {datasets.length} / {MAX_DATASETS} USED
+      <section className="mt-8">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 className="text-2xl font-extrabold tracking-tight">Your library</h2>
+          <span className="text-[var(--muted)]">
+            <span className="tabular-nums">{datasets.length} of {MAX_DATASETS} used</span>
           </span>
         </div>
 
         {loadingList ? (
-          <div className="flex justify-center py-12">
-            <p className="text-sm text-[var(--muted)] font-mono animate-pulse">Loading datasets...</p>
-          </div>
+          <p className="py-10 text-[var(--muted)]" role="status">Loading your datasets…</p>
         ) : datasets.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--text)]/[0.05] border-dashed py-12 text-center">
-            <p className="text-[var(--muted)]">No files found. Upload your first CSV above.</p>
-          </div>
+          <p className="rounded-2xl border border-dashed border-[var(--line)] px-6 py-10 text-[var(--muted)]">
+            Nothing here yet. Upload a CSV above to get started.
+          </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="divide-y divide-[var(--line)] rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
             {datasets.map((d) => {
               const isSelected = d.filename === selectedFilename;
               return (
-                <div key={d.filename} className="group relative transition-all duration-300 hover:-translate-y-1">
+                <li key={d.filename} className="flex items-center gap-2 pr-3">
                   <button
                     onClick={() => selectDataset(d.filename)}
-                    className={`relative w-full h-full overflow-hidden text-left rounded-2xl border p-5 pb-12 flex flex-col gap-3 transition-all duration-300 ${
-                      isSelected
-                        ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xl"
-                        : "border-[var(--text)]/[0.20] bg-[var(--surface)] hover:border-[var(--text)]/[0.3]"
+                    aria-pressed={isSelected}
+                    className={`flex min-w-0 flex-1 items-center gap-4 border-l-[5px] px-5 py-4 text-left transition-colors hover:bg-[var(--surface-2)] ${
+                      isSelected ? "border-[var(--lime)]" : "border-transparent"
                     }`}
                   >
-                    <div className="flex items-start justify-between w-full">
-                      <h3 className={`font-bold text-base line-clamp-2 pr-2 ${isSelected ? "text-[var(--bg)]" : "text-[var(--text)]"}`}>
-                        {d.filename}
-                      </h3>
-                    </div>
-                    {isSelected && (
-                      <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-[var(--blue)] animate-pulse" />
-                    )}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--muted)]" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span className="truncate font-semibold">{d.filename}</span>
+                    {isSelected && <span className="ml-auto hidden shrink-0 text-sm font-bold text-[var(--lime-ink)] sm:inline">Selected</span>}
                   </button>
                   <button
                     onClick={() => deleteDataset(d.filename)}
                     disabled={deleting === d.filename}
                     aria-label={`Delete ${d.filename}`}
                     title="Delete dataset"
-                    className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 hover:bg-red-500/15 hover:text-red-400 ${
-                      isSelected ? "text-[var(--bg)]/60" : "text-[var(--muted)]"
-                    }`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:opacity-40"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                       <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                     </svg>
                   </button>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-      </div>
+      </section>
 
-      {/* Action Button */}
-      <div className="mt-16 mb-8 w-full max-w-sm">
+      <div className="mt-10 flex flex-wrap items-center gap-4">
         <button
           onClick={goToDashboard}
           disabled={!selectedFilename || navigating}
-          className={`w-full rounded-2xl px-8 py-5 text-lg font-bold transition-all duration-300 ${
-            selectedFilename && !navigating
-              ? "bg-[var(--text)] text-[var(--bg)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-[var(--text)]/20"
-              : "bg-[var(--text)]/[0.05] text-[var(--muted)] cursor-not-allowed"
-          }`}
+          className="rounded-full bg-[var(--text)] px-8 py-3.5 text-base font-bold text-[var(--bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {navigating ? "Initializing Pipeline..." : "Enter Workspace →"}
+          {navigating ? "Starting analysis…" : "Analyze this dataset"}
         </button>
+        {!selectedFilename && datasets.length > 0 && (
+          <span className="text-[var(--muted)]">Select a dataset first.</span>
+        )}
       </div>
     </div>
   );

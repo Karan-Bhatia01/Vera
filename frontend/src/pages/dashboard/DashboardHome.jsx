@@ -2,14 +2,17 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import { usePipeline } from "../../context/PipelineContext";
+import { Mascot, PageHeader } from "../../components/brand/Brand";
+import { STAGES } from "../../components/brand/stages";
+import Select from "../../components/Select";
 
 const MAX_DATASETS = 3;
 
 const pipelineSteps = [
-  { label: "Upload", path: "/upload" },
-  { label: "Info", path: "/dashboard/info" },
-  { label: "EDA", path: "/dashboard" },
-  { label: "Modelling", path: "/dashboard/ml" },
+  { stage: "upload", label: "Upload", path: "/upload" },
+  { stage: "info", label: "Data info", path: "/dashboard/info" },
+  { stage: "eda", label: "EDA", path: "/dashboard/eda" },
+  { stage: "ml", label: "Modelling", path: "/dashboard/ml" },
 ];
 
 function getActiveStep(selectedFilename, submitted) {
@@ -115,204 +118,105 @@ export default function DashboardHome() {
 
   return (
     <div>
-      {/* Header */}
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">
-        Select a dataset and configure your analysis.
-      </p>
+      <PageHeader title="Dashboard">Pick a dataset and the column you want to predict.</PageHeader>
 
-      {/* Pipeline running banner */}
       {polling && pipelineFile === selectedFilename && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--blue)]/30 bg-[var(--blue)]/5 px-4 py-2.5">
+        <p role="status" className="mb-6 flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 font-semibold">
           <Spinner />
-          <p className="text-xs font-semibold text-[var(--blue)] font-mono">
-            Pipeline running…
-          </p>
-        </div>
+          Vera is working on this dataset. Results appear on each page as they finish.
+        </p>
       )}
 
-      {/* Pipeline Steps */}
-      <div className="mt-6 flex items-center gap-0">
-        {pipelineSteps.map((step, i) => {
-          const isCompleted = i < activeStep;
-          const isCurrent = i === activeStep;
-          return (
-            <div key={step.label} className="flex items-center flex-1 last:flex-none">
-              <button
-                onClick={() => navigate(step.path)}
-                className="flex items-center gap-2 group"
-              >
-                <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                    isCompleted
-                      ? "bg-[var(--text)] text-[var(--bg)]"
-                      : isCurrent
-                        ? "border-2 border-[var(--text)] text-[var(--text)]"
-                        : "border border-[var(--text)]/20 text-[var(--muted)]"
-                  }`}
-                >
-                  {isCompleted ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <span
-                  className={`text-xs font-semibold transition-colors ${
-                    isCompleted || isCurrent ? "text-[var(--text)]" : "text-[var(--muted)]"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </button>
-              {i < pipelineSteps.length - 1 && (
-                <div className="flex-1 mx-3">
-                  <div
-                    className={`h-[1.5px] w-full rounded-full transition-colors ${
-                      i < activeStep ? "bg-[var(--text)]" : "bg-[var(--text)]/10"
-                    }`}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <Stepper activeStep={activeStep} onNavigate={navigate} />
 
-      {/* Dataset History + Usage Card */}
-      <div className="mt-8 grid gap-4 lg:grid-cols-[2.5fr_1fr]">
-        {/* Dataset History */}
-        <div className="rounded-2xl border border-[var(--text)]/[0.15] p-5">
-          <h2 className="text-sm font-bold mb-4">Dataset History</h2>
+      <div className="mt-10 grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6">
+          <h2 className="mb-4 text-xl font-extrabold tracking-tight">Your datasets</h2>
           {loading ? (
-            <p className="text-xs text-[var(--muted)] font-mono">Loading…</p>
+            <p className="text-[var(--muted)]" role="status">Loading…</p>
           ) : datasets.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-xs text-[var(--muted)]">No datasets yet.</p>
+            <div className="py-4">
+              <p className="text-[var(--muted)]">No datasets yet.</p>
               <button
                 onClick={() => navigate("/upload")}
-                className="mt-4 rounded-xl bg-[var(--text)] px-5 py-2 text-xs font-bold text-[var(--bg)]"
+                className="mt-4 rounded-full bg-[var(--text)] px-5 py-2.5 font-bold text-[var(--bg)] hover:opacity-90"
               >
-                Upload a dataset
+                Upload a CSV
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <ul className="space-y-2">
               {datasets.map((d) => {
                 const isSelected = d.filename === selectedFilename;
                 return (
-                  <button
-                    key={d.filename}
-                    onClick={() => selectDataset(d.filename)}
-                    className={`w-full flex items-center gap-4 rounded-xl border p-3.5 text-left transition-all ${
-                      isSelected
-                        ? "border-[var(--text)]/30 bg-[var(--text)]/[0.04]"
-                        : "border-[var(--text)]/[0.06] hover:border-[var(--text)]/20"
-                    }`}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--text)]/[0.05]">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--muted)]">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-xs truncate">{d.filename}</h3>
-                    </div>
-                    {isSelected && (
-                      <span className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold text-[var(--text)]">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--green)]">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                          <polyline points="22 4 12 14.01 9 11.01" />
-                        </svg>
-                        Selected
-                      </span>
-                    )}
-                  </button>
+                  <li key={d.filename}>
+                    <button
+                      onClick={() => selectDataset(d.filename)}
+                      aria-pressed={isSelected}
+                      className={`flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                        isSelected
+                          ? "border-[var(--sun)] bg-[var(--sun)]/10"
+                          : "border-[var(--line)] hover:border-[var(--muted)]/50"
+                      }`}
+                    >
+                      <span className="truncate font-semibold">{d.filename}</span>
+                      {isSelected && <span className="ml-auto shrink-0 text-sm font-bold text-[var(--sun-ink)]">Selected</span>}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Usage Card */}
-        <div className="rounded-2xl border border-[var(--text)]/[0.15] p-5 flex flex-col items-start justify-between w-full">
-          <div>
-            <p className="text-xs text-[var(--muted)] mb-1">Storage</p>
-            <p className="text-lg font-bold">
-              {datasets.length} <span className="text-sm font-normal text-[var(--muted)]">of {MAX_DATASETS}</span>
-            </p>
-            <p className="text-[11px] text-[var(--muted)] mt-1">datasets used</p>
-            {/* Progress bar */}
-            <div className="mt-3 h-1.5 w-full rounded-full bg-[var(--text)]/[0.08] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[var(--blue)] transition-all duration-500"
-                style={{ width: `${(datasets.length / MAX_DATASETS) * 100}%` }}
-              />
-            </div>
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6">
+          <h2 className="text-xl font-extrabold tracking-tight">Storage</h2>
+          <p className="mt-3 text-3xl font-extrabold">
+            <span className="font-mono">{datasets.length}</span>
+            <span className="text-lg font-semibold text-[var(--muted)]"> of {MAX_DATASETS} datasets</span>
+          </p>
+          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]" aria-hidden="true">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${(datasets.length / MAX_DATASETS) * 100}%`, background: "var(--lime)" }}
+            />
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* EDA Config Form */}
       {selectedFilename && (
-        <div className="mt-6 rounded-2xl border border-[var(--text)]/[0.15] p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--muted)]">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-            <h2 className="text-sm font-bold">Configure Analysis</h2>
-          </div>
-          <p className="text-xs text-[var(--muted)] mb-5">
-            For <span className="font-semibold text-[var(--text)]">{selectedFilename}</span>, select target column, then submit to start Analysis.
+        <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6">
+          <h2 className="text-xl font-extrabold tracking-tight">Set up the analysis</h2>
+          <p className="mt-1 mb-6 text-[var(--muted)]">
+            For <strong className="text-[var(--text)]">{selectedFilename}</strong>. Choose a target, leave out any columns you don&apos;t need, then run.
           </p>
 
           {columnsLoading ? (
-            <p className="text-xs text-[var(--muted)] font-mono">Loading columns…</p>
+            <p className="text-[var(--muted)]" role="status">Loading columns…</p>
           ) : submitted ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
-              <p className="text-xs text-emerald-400 font-medium">
-                ✓ Analysis started. Check <strong>Data EDA</strong> in the sidebar for results.
-              </p>
-            </div>
+            <p role="status" className="rounded-xl border border-[var(--lime-ink)]/30 bg-[var(--lime)]/15 px-4 py-3 font-semibold text-[var(--lime-ink)]">
+              Analysis started. Open{" "}
+              <button onClick={() => navigate("/dashboard/eda")} className="underline underline-offset-2">Data EDA</button>{" "}
+              to see the charts as they arrive.
+            </p>
           ) : (
             <>
-              {/* Target Column */}
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-2 text-xs font-semibold">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--blue)]">
-                      <circle cx="12" cy="12" r="10" />
-                      <circle cx="12" cy="12" r="6" />
-                      <circle cx="12" cy="12" r="2" />
-                    </svg>
-                    Target Column
-                  </label>
-                </div>
-                <CustomSelect
+              <div className="mb-6 max-w-md">
+                <label id="target-column-label" htmlFor="target-column" className="mb-2 block font-semibold">Column to predict</label>
+                <Select
+                  id="target-column"
+                  labelledBy="target-column-label"
                   value={targetColumn}
                   onChange={setTargetColumn}
                   options={columns}
-                  placeholder="Select target column..."
+                  placeholder="Choose a column…"
                 />
-                <p className="text-[10px] text-[var(--muted)] mt-1.5 flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                  This column will be used as the prediction target.
-                </p>
+                <p className="mt-2 text-sm text-[var(--muted)]">This is the column the models learn to predict.</p>
               </div>
 
-              {/* Columns to Drop */}
               {columns.length > 0 && (
-                <div className="mb-5">
-                  <label className="block text-xs font-semibold mb-3">
-                    Columns to Drop
-                  </label>
+                <fieldset className="mb-6">
+                  <legend className="mb-3 font-semibold">Columns to leave out</legend>
                   <div className="flex flex-wrap gap-2">
                     {columns
                       .filter((c) => c !== targetColumn)
@@ -321,34 +225,25 @@ export default function DashboardHome() {
                         return (
                           <button
                             key={col}
+                            type="button"
                             onClick={() => toggleDrop(col)}
-                            className={`group flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all ${
+                            aria-pressed={dropped}
+                            className={`rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                               dropped
-                                ? "border-red-500/30 bg-red-500/10 text-[var(--muted)] line-through hover:border-red-500/50"
-                                : "border-[var(--text)]/[0.15] text-[var(--text)] hover:border-[var(--text)]/40 hover:bg-[var(--text)]/[0.02]"
+                                ? "border-[var(--danger)]/40 bg-[var(--danger)]/10 text-[var(--danger)] line-through"
+                                : "border-[var(--line)] text-[var(--text)] hover:border-[var(--muted)]/50"
                             }`}
                           >
-                            {dropped ? (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                            ) : (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text)]/40 group-hover:text-[var(--text)]">
-                                <line x1="12" y1="5" x2="12" y2="19" />
-                                <line x1="5" y1="12" x2="19" y2="12" />
-                              </svg>
-                            )}
                             {col}
                           </button>
                         );
                       })}
                   </div>
-                </div>
+                </fieldset>
               )}
 
               {submitError && (
-                <p className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-[11px] text-red-400 font-medium">
+                <p role="alert" className="mb-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 font-semibold text-[var(--danger)]">
                   {submitError}
                 </p>
               )}
@@ -356,83 +251,53 @@ export default function DashboardHome() {
               <button
                 onClick={submitEDA}
                 disabled={!targetColumn || submitting}
-                className={`rounded-xl px-6 py-2.5 text-xs font-bold transition-all ${
-                  targetColumn && !submitting
-                    ? "bg-[var(--text)] text-[var(--bg)] hover:opacity-90"
-                    : "bg-[var(--text)]/[0.05] text-[var(--muted)] cursor-not-allowed"
-                }`}
+                className="rounded-full bg-[var(--text)] px-7 py-3 font-bold text-[var(--bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {submitting ? "Starting…" : "Run Analysis →"}
+                {submitting ? "Starting…" : "Run analysis"}
               </button>
             </>
           )}
-        </div>
+        </section>
       )}
     </div>
+  );
+}
+
+/** The four stages as mascots: done ones are tinted, the current one is ringed, later ones are faded. */
+function Stepper({ activeStep, onNavigate }) {
+  return (
+    <ol className="grid grid-cols-4 gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-5 sm:px-6" aria-label="Progress">
+      {pipelineSteps.map((step, i) => {
+        const state = i < activeStep ? "done" : i === activeStep ? "current" : "next";
+        const { color } = STAGES[step.stage];
+        return (
+          <li key={step.stage}>
+            <button
+              onClick={() => onNavigate(step.path)}
+              aria-current={state === "current" ? "step" : undefined}
+              className="flex w-full flex-col items-center gap-2 rounded-xl py-1 text-center"
+            >
+              <span
+                className={`flex h-16 w-16 items-center justify-center rounded-full border-[3px] ${state === "next" ? "opacity-45 grayscale" : ""}`}
+                style={{
+                  borderColor: state === "next" ? "var(--line)" : color,
+                  background: state === "done" ? `color-mix(in srgb, ${color} 22%, transparent)` : "transparent",
+                }}
+              >
+                <Mascot stage={step.stage} size={50} />
+              </span>
+              <span className={`text-sm font-semibold ${state === "next" ? "text-[var(--muted)]" : ""}`}>
+                {step.label}
+                {state === "done" && <span className="sr-only"> (done)</span>}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
 const Spinner = () => (
-  <div className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--blue)] border-t-transparent" />
+  <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--line)] border-t-[var(--sky)]" aria-hidden="true" />
 );
-
-function CustomSelect({ value, onChange, options, placeholder }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative w-full">
-      <div
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between rounded-xl border border-[var(--text)]/[0.1] bg-[var(--text)]/[0.02] text-[var(--text)] px-4 py-2.5 text-xs cursor-pointer hover:border-[var(--text)]/20 transition-colors"
-      >
-        <span>
-          {value ? (
-            value
-          ) : (
-            <span className="text-[var(--muted)]">{placeholder}</span>
-          )}
-        </span>
-        <svg
-          className={`w-3.5 h-3.5 transition-transform text-[var(--muted)] ${open ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </div>
-
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
-          ></div>
-          <div className="absolute z-50 w-full mt-1 bg-[var(--surface)] border border-[var(--text)]/[0.1] rounded-xl shadow-2xl shadow-black/40 max-h-60 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5">
-            {options.map((opt) => (
-              <div
-                key={opt}
-                onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
-                }}
-                className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition-colors ${
-                  value === opt
-                    ? "bg-[var(--text)] text-[var(--bg)] font-bold"
-                    : "text-[var(--text)] hover:bg-[var(--text)]/[0.06]"
-                }`}
-              >
-                {opt}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
