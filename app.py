@@ -1,5 +1,3 @@
-import os
-
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -8,9 +6,7 @@ load_dotenv()
 
 
 def create_app():
-
     app = Flask(__name__)
-    app.secret_key = os.getenv("SECRET_KEY", "clarityai-secret-key")
     CORS(app)
 
     from routes.health   import health_bp
@@ -20,14 +16,9 @@ def create_app():
     from routes.analysis import analysis_bp
     from routes.eda      import eda_bp
     from routes.ml       import ml_bp
- 
-    app.register_blueprint(health_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(upload_bp)
-    app.register_blueprint(dataset_bp)
-    app.register_blueprint(analysis_bp)
-    app.register_blueprint(eda_bp)
-    app.register_blueprint(ml_bp)
+
+    for blueprint in (health_bp, auth_bp, upload_bp, dataset_bp, analysis_bp, eda_bp, ml_bp):
+        app.register_blueprint(blueprint)
 
     return app
 
@@ -35,7 +26,7 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    print("🚀 ClarityAI Flask API running")
+    print("🚀 Vera Flask API running")
     print("Local URL: http://127.0.0.1:5000")
     print("Health check: http://127.0.0.1:5000/api/health")
     app.run(host="0.0.0.0", port=5000, debug=False)

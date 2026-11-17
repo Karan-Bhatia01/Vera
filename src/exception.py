@@ -4,6 +4,9 @@ from src.logger import logging
 def error_message_detail(error,error_detail:sys):
     _,_,exc_tb=error_detail.exc_info() # it returns this we only need third one (exception_type, exception_value, traceback)
 
+    if exc_tb is None: # raised outside an except block (e.g. a validation error), so there's no traceback to point at
+        return str(error)
+
     file_name=exc_tb.tb_frame.f_code.co_filename # finds the file name where error occurred.
 
     error_message="Error occured in python script name [{0}] line number [{1}] error message[{2}]".format(

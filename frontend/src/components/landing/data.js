@@ -7,9 +7,9 @@ export const navLinks = [
 
 export const stats = [
   { value: "3", label: "STAGES" },
-  { value: "5+", label: "MODELS" },
-  { value: "10+", label: "CHARTS" },
-  { value: "3MB", label: "FILE LIMIT" },
+  { value: "3–5", label: "MODELS" },
+  { value: "10", label: "AI CHARTS" },
+  { value: "25K", label: "ROW LIMIT" },
 ];
 
 export const pipelineSteps = [
@@ -21,17 +21,17 @@ export const pipelineSteps = [
   {
     n: "02",
     title: "Clean & Transform",
-    body: "Missing values, outliers, and encoding handled automatically — with every decision logged and reversible.",
+    body: "Missing values are filled and categories encoded automatically, with the AI choosing a strategy for each column.",
   },
   {
     n: "03",
-    title: "Train in Parallel",
-    body: "Ten-plus candidate models trained and scored simultaneously, no manual loop required.",
+    title: "Train & Compare",
+    body: "An AI-picked shortlist of 3–5 models, each trained and scored on a held-out test split.",
   },
   {
     n: "04",
     title: "Explain",
-    body: "Feature importance metrics and a RAG assistant that answers questions about your own data.",
+    body: "Feature importance for the best model, plus a plain-English AI summary of what the results mean.",
   },
 ];
 
@@ -44,7 +44,7 @@ export const features = [
   {
     icon: "⚙️",
     title: "Auto ML",
-    body: "End-to-end preprocessing and model training. From feature engineering to tuning, Vera handles it all.",
+    body: "End-to-end preprocessing and model training. From feature engineering to model selection, Vera handles it all.",
   },
   {
     icon: "📈",
@@ -54,7 +54,7 @@ export const features = [
   {
     icon: "🎯",
     title: "Model Comparison",
-    body: "Compare models head-to-head with confusion matrices, feature importance, and performance scores.",
+    body: "Compare models head-to-head on accuracy, F1, R² and feature importance.",
   },
 ];
 

@@ -21,43 +21,23 @@ def require_auth(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
-
         auth_header = request.headers.get("Authorization", "")
 
         if not auth_header.startswith("Bearer "):
-
-            return jsonify({
-
-                "detail": "Missing or malformed Authorization header"
-
-            }), 401
+            return jsonify({"detail": "Missing or malformed Authorization header"}), 401
 
         token = auth_header.split("Bearer ", 1)[1].strip()
 
         if not token:
-
-            return jsonify({
-
-                "detail": "Missing token"
-
-            }), 401
+            return jsonify({"detail": "Missing token"}), 401
 
         try:
-
             payload = verify_token(token)
-
         except Exception as e:
-
             message = e.args[0] if e.args else str(e)
-
-            return jsonify({
-
-                "detail": str(message)
-
-            }), 401
+            return jsonify({"detail": str(message)}), 401
 
         request.user = payload
-
         return f(*args, **kwargs)
 
     return decorated

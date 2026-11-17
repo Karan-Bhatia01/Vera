@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import api from "../api/client";
+import api, { clearSession } from "../api/client";
 
 /** Decode a JWT payload without a library. Returns null if missing/malformed. */
 function decodeToken(token) {
@@ -48,8 +48,7 @@ export default function ProtectedRoute({ children }) {
       .then(() => active && setStatus("ok"))
       .catch(() => {
         // 401/expired/forged → drop creds and bounce to login.
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
+        clearSession();
         if (active) setStatus("denied");
       });
     return () => {

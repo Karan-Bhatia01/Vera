@@ -1,8 +1,6 @@
 """
 missing_value_agent.py
 ========================
-Replaces get_ai_insights() in eda_processing.py.
-
 Computes null stats + dtype + skew in Python, sends ONE prompt to Groq.
 Returns {} immediately if no missing values — no API call at all.
 """
@@ -13,7 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.agents.llm_provider import call_llm, parse_json_from_response
+from src.agents.llm_provider import call_llm
+from src.utils import parse_json_response
 from src.logger import logging
 from src.exception import CustomException
 
@@ -61,7 +60,7 @@ def decide_missing_value_strategy(df: pd.DataFrame) -> dict:
         )
 
         raw = call_llm(SYSTEM_PROMPT, user_prompt)
-        strategy = parse_json_from_response(raw)
+        strategy = parse_json_response(raw)
         if not isinstance(strategy, dict):
             strategy = {}
 

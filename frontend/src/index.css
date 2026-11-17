@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --radius-sm: 0.1rem;
   --radius-md: 0.31rem;
   --radius-lg: 0.42rem;
@@ -11,38 +12,57 @@
 }
 
 :root {
-  --bg: #0D0D0D;
+  --bg: #000000;
+  --sidebar: #0a0a0b;
   --surface: #222428;
   --surface-2: #2a2c31;
   --text: #f1f3f4;
   --muted: #a9adb5;
   --line: rgba(255, 255, 255, 0.1);
   --blue: #8ab4f8;
-  --blue-dark: #1d3557;
-  --red: #f28b82;
   --yellow: #fdd663;
   --green: #81c995;
   --radius-lg: 20px;
   --radius-md: 14px;
+  
+  --orb-outer: rgba(180, 50, 50, 0.6);
+  --orb-inner: rgba(200, 200, 200, 0.4);
+  --orb-dot: #ffffff;
+  --orb-fill: rgba(180, 50, 50, 0.3);
+  --pill-stroke: rgba(60, 100, 200, 0.6);
+  --pill-fill: rgba(60, 100, 200, 0.3);
+  --circ-stroke: rgba(200, 150, 50, 0.5);
+  --circ-fill: rgba(200, 150, 50, 0.8);
+  
   font-family: "Manrope", system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
 }
 
 :root[data-theme="light"] {
   --bg: #f4f1ea;
+  --sidebar: #ffffff;
   --surface: #ffffff;
   --surface-2: #ece9e2;
   --text: #202124;
   --muted: #555b64;
-  --line: rgba(32, 33, 36, 0.15);
+  --line: rgba(32, 33, 36, 0.22);
   --blue: #79a7eb;
-  --blue-dark: #d9e7fb;
-  --red: #ea7b72;
   --yellow: #f2c94c;
   --green: #69b57e;
+  
+  --orb-outer: rgba(220, 50, 50, 0.85);
+  --orb-inner: rgba(0, 0, 0, 0.4);
+  --orb-dot: #000000;
+  --orb-fill: rgba(220, 50, 50, 0.4);
+  --pill-stroke: rgba(40, 80, 240, 0.85);
+  --pill-fill: rgba(40, 80, 240, 0.4);
+  --circ-stroke: rgba(240, 140, 20, 0.85);
+  --circ-fill: rgba(240, 140, 20, 0.95);
+  
   color-scheme: light;
 }
 
@@ -66,25 +86,6 @@ body {
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     padding: 1.5rem;
-  }
-
-  .surface--blue {
-    background: color-mix(in srgb, var(--blue) 8%, var(--surface));
-  }
-  .surface--yellow {
-    background: color-mix(in srgb, var(--yellow) 8%, var(--surface));
-  }
-  .surface--green {
-    background: color-mix(in srgb, var(--green) 8%, var(--surface));
-  }
-
-  .eyebrow {
-    font-family: "DM Mono", monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-weight: 500;
   }
 }
 

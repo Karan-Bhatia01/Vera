@@ -1,5 +1,3 @@
-import os
-import json
 import threading
 import time
 from flask import Blueprint, request, jsonify
@@ -21,13 +19,13 @@ def _run_info_analysis(job_id: str, filename: str):
         analysis = analyzer.dataset_analysis()
         unique = analyzer.get_unique_column_values()
 
-        update_job(job_id, progress=60, message="Generating insights using CrewAI...")
-        explainer = AnalysisExplainer(filename)
+        update_job(job_id, progress=60, message="Generating Insights...")
+        explainer = AnalysisExplainer(filename, df=analyzer.get_dataframe())
         ai_insights = explainer.explain_analysis(analysis)
 
         store_dataset_insights(filename, analysis, ai_insights, unique)
         result = {"analysis": analysis, "unique": unique, "ai_insights": ai_insights}
-        
+
         update_job(job_id, status="completed", progress=100, message="Done", result=result)
         logging.info("info job %s: completed in %.1fs", job_id, time.time() - t0)
     except Exception as e:

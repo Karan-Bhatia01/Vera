@@ -1,13 +1,20 @@
 from flask import Blueprint, request, jsonify
 
-from services.auth_service import signup, login
+from services.auth_service import signup, login, google_auth
 from services.auth_decorator import require_auth
 
 
-auth_bp = Blueprint(
-    "auth",
-    __name__
-)
+auth_bp = Blueprint("auth", __name__)
+
+
+def _auth_response(action, error_status):
+    """Run an auth action and return its token, or a clean error message."""
+    try:
+        result = action(request.json or {})
+        return jsonify({"token": result["token"], "email": result["email"]}), 200
+    except Exception as e:
+        message = e.args[0] if e.args else str(e)
+        return jsonify({"detail": str(message)}), error_status
 
 
 @auth_bp.route("/api/me", methods=["GET"])
@@ -21,83 +28,25 @@ def me_route():
     return jsonify({"email": request.user.get("email")}), 200
 
 
-
-@auth_bp.route(
-    "/auth/signup",
-    methods=["POST"]
-)
+@auth_bp.route("/auth/signup", methods=["POST"])
 def signup_route():
-
-    try:
-
-        data = request.json
-
-        email = data.get("email")
-        password = data.get("password")
-        confirm_password = data.get("confirm_password")
-
-        result = signup(
-            email,
-            password,
-            confirm_password
-        )
-
-        return jsonify({
-
-            "token": result["token"],
-            "email": result["email"]
-
-        }), 200
+    return _auth_response(
+        lambda data: signup(data.get("email"), data.get("password"), data.get("confirm_password")),
+        error_status=400,
+    )
 
 
-
-    except Exception as e:
-
-        message = e.args[0] if e.args else str(e)
-
-        return jsonify({
-
-            "detail": str(message)
-
-        }), 400
-
-
-
-
-
-@auth_bp.route(
-    "/auth/login",
-    methods=["POST"]
-)
+@auth_bp.route("/auth/login", methods=["POST"])
 def login_route():
-
-    try:
-
-        data = request.json
-
-        email = data.get("email")
-        password = data.get("password")
-
-        result = login(
-            email,
-            password
-        )
-
-        return jsonify({
-
-            "token": result["token"],
-            "email": result["email"]
-
-        }), 200
+    return _auth_response(
+        lambda data: login(data.get("email"), data.get("password")),
+        error_status=401,
+    )
 
 
-
-    except Exception as e:
-
-        message = e.args[0] if e.args else str(e)
-
-        return jsonify({
-
-            "detail": str(message)
-
-        }), 401
+@auth_bp.route("/auth/google", methods=["POST"])
+def google_auth_route():
+    return _auth_response(
+        lambda data: google_auth(data.get("token")),
+        error_status=400,
+    )

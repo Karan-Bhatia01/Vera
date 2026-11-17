@@ -1,48 +1,21 @@
 import sys
-import io
-import os
 import pandas as pd
 
-from src.core.connections import get_db, get_gridfs
 from src.logger import logging
 from src.exception import CustomException
+from src.utils import load_dataframe_from_mongo
 
 
 class DataInfo:
     def __init__(self, filename: str):
-        try:
-            self.filename = filename
-
-            self.db = get_db()
-            self.fs = get_gridfs()
-
-            logging.info("MongoDB connection established in Data-Info (shared).")
-
-        except Exception as e:
-            raise CustomException(e, sys)
+        self.filename = filename
+        self._df = None
 
     def get_dataframe(self) -> pd.DataFrame:
-        """
-        Fetch file from Database using filename and return as pandas DataFrame
-        """
-        try:
-            # Get latest file with given filename
-            grid_out = self.fs.find_one(
-                {"filename": self.filename},
-                sort=[("uploadDate", -1)]
-            )
-
-            if grid_out is None:
-                raise Exception("File not found in MongoDB GridFS")
-
-            file_bytes = grid_out.read()
-            df = pd.read_csv(io.BytesIO(file_bytes))
-
-            logging.info("Dataset successfully loaded into DataFrame.")
-            return df
-
-        except Exception as e:
-            raise CustomException(e, sys)
+        """Load the dataset once from GridFS and reuse it for every analysis call."""
+        if self._df is None:
+            self._df = load_dataframe_from_mongo(self.filename)
+        return self._df
 
     def dataset_analysis(self) -> dict:
         """
@@ -78,6 +51,9 @@ class DataInfo:
                 "numeric_stats": self._numeric_stats(df, numeric_cols),
                 "top_categories": self._top_categories(df, categorical_cols),
                 "correlations": self._correlations(df, numeric_cols),
+                "advanced_numeric": self._advanced_numeric_stats(df, numeric_cols),
+                "advanced_categorical": self._advanced_categorical_stats(df, categorical_cols),
+                "cardinality_flags": self._cardinality_flags(df),
             }
 
             logging.info("Dataset analysis completed.")
@@ -126,6 +102,63 @@ class DataInfo:
                     pairs.append({"columns": [a, b], "correlation": round(float(val), 3)})
         pairs.sort(key=lambda p: abs(p["correlation"]), reverse=True)
         return pairs[:limit]
+
+    @staticmethod
+    def _advanced_numeric_stats(df: pd.DataFrame, numeric_cols: list) -> dict:
+        stats = {}
+        for col in numeric_cols:
+            s = df[col].dropna()
+            if s.empty: continue
+            
+            q1 = s.quantile(0.25)
+            q3 = s.quantile(0.75)
+            iqr = q3 - q1
+            outliers = int(((s < (q1 - 1.5 * iqr)) | (s > (q3 + 1.5 * iqr))).sum())
+            
+            stats[col] = {
+                "outliers": outliers,
+                "skewness": round(float(s.skew()), 3) if len(s) > 2 else 0.0,
+                "kurtosis": round(float(s.kurt()), 3) if len(s) > 3 else 0.0,
+                "zeros": int((s == 0).sum()),
+                "negatives": int((s < 0).sum()),
+            }
+        return stats
+
+    @staticmethod
+    def _advanced_categorical_stats(df: pd.DataFrame, categorical_cols: list) -> dict:
+        stats = {}
+        for col in categorical_cols:
+            s = df[col].dropna()
+            if s.empty: continue
+            
+            try:
+                is_date = pd.to_datetime(s.head(50), errors='coerce', format='mixed').notna().sum() > 25
+            except Exception:
+                is_date = False
+                
+            str_s = s.astype(str)
+            lengths = str_s.str.len()
+            
+            stats[col] = {
+                "inferred_date": bool(is_date),
+                "text_length": {
+                    "min": int(lengths.min()),
+                    "max": int(lengths.max()),
+                    "mean": round(float(lengths.mean()), 2),
+                }
+            }
+        return stats
+
+    @staticmethod
+    def _cardinality_flags(df: pd.DataFrame) -> dict:
+        flags = {"constant_columns": [], "id_columns": []}
+        total = len(df)
+        if total == 0: return flags
+        
+        nunique = df.nunique()
+        flags["constant_columns"] = nunique[nunique == 1].index.tolist()
+        flags["id_columns"] = nunique[nunique == total].index.tolist()
+        return flags
 
     def get_unique_column_values(self) -> dict:
         """

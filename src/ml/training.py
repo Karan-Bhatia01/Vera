@@ -2,8 +2,6 @@
 training.py
 ===========
 Fit every candidate model, evaluate it, and collect feature importances.
-A single implementation used by the orchestrator (previously this logic was
-duplicated inside ml_pipeline.py).
 """
 
 from __future__ import annotations

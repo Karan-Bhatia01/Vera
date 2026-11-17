@@ -97,7 +97,7 @@ def get_job_status(job_id: str) -> dict | None:
 
 
 def cleanup_old_jobs():
-    """Delete jobs older than the TTL (called periodically and on startup)."""
+    """Delete jobs older than the TTL (runs once at import/startup)."""
     cutoff = time.time() - _TTL
     with _lock:
         to_delete = [k for k, v in _jobs.items() if v.get("created", 0) < cutoff]

@@ -2,21 +2,18 @@
 pipeline.py
 ===========
 MLPipeline — the orchestrator. Loads the data, asks the agents for a feature
-plan and a model shortlist, then delegates preprocessing, training, explanation,
-and persistence to the focused modules in this package.
+plan and a model shortlist, then delegates preprocessing and training to the
+focused modules in this package.
 
-Public surface is unchanged from the old src.components.ml_pipeline:
     MLPipeline(filename, target_column).run(progress_callback) -> dict
 """
 
 from __future__ import annotations
 
-import os
 import sys
 from collections import Counter
 from typing import Any, Callable
 
-from src.core.connections import get_db
 from src.logger import logging
 from src.exception import CustomException
 from src.utils import load_dataframe_from_mongo
@@ -37,7 +34,6 @@ class MLPipeline:
         try:
             self.filename = filename
             self.target_column = target_column
-            self.db = get_db()
             # normalize_dtypes up front so no downstream step ever meets an
             # extension dtype (StringDtype/Int64) that numpy/sklearn can't read.
             self.df = normalize_dtypes(load_dataframe_from_mongo(filename))
@@ -61,7 +57,7 @@ class MLPipeline:
             problem_type = detect_problem_type(self.df[self.target_column])
 
             progress(25, "Preprocessing data...")
-            X_train, X_test, y_train, y_test, feature_names, _le = build_splits(
+            X_train, X_test, y_train, y_test, feature_names, _ = build_splits(
                 self.df, self.target_column, feature_plan, problem_type
             )
 
@@ -84,13 +80,9 @@ class MLPipeline:
             best_model = best_model_name(results, rank_metric)
 
             progress(90, "Finalizing results...")
-            mongo_id = ""
-
             progress(100, "Pipeline complete!")
             logging.info("=== ML Pipeline complete. Best: %s ===", best_model)
-            return self._response(
-                results, problem_type, feature_plan, best_model, rank_metric, mongo_id
-            )
+            return self._response(results, problem_type, feature_plan, best_model, rank_metric)
 
         except Exception as e:
             raise CustomException(e, sys) from e
@@ -114,7 +106,7 @@ class MLPipeline:
         logging.info("Agent selected %d models: %s", len(models), list(models))
         return models or all_models  # fall back to all if selection came back empty
 
-    def _response(self, results, problem_type, feature_plan, best_model, rank_metric, mongo_id) -> dict:
+    def _response(self, results, problem_type, feature_plan, best_model, rank_metric) -> dict:
         # Strip the (non-serialisable) estimator objects; sort by primary metric.
         clean = {
             name: {"metrics": data["metrics"], "feature_importance": data.get("feature_importance")}
@@ -133,5 +125,4 @@ class MLPipeline:
             "results":       clean,
             "best_model":    best_model,
             "rank_metric":   rank_metric,
-            "mongo_doc_id":  mongo_id,
         }

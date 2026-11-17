@@ -1,27 +1,25 @@
 import sys
 
-import pandas as pd
-
 from src.components.data_ingestion import DataIngestion
-from src.logger import logging
+from src.utils import read_csv_robust
 from src.exception import CustomException
 
 
 MAX_DATASETS_PER_USER = 3
-MAX_ROWS = 35_000
+MAX_ROWS = 25_000
 MAX_COLUMNS = 20
 
 
-
 def handle_upload(file, owner_email: str):
-
     try:
-
         ingestion = DataIngestion()
 
-        existing_count = ingestion.count_files_for_owner(owner_email)
+        if ingestion.has_file(file.filename, owner_email):
+            raise ValueError(
+                f"A dataset named '{file.filename}' already exists. Delete it first to upload a new version."
+            )
 
-        if existing_count >= MAX_DATASETS_PER_USER:
+        if ingestion.count_files_for_owner(owner_email) >= MAX_DATASETS_PER_USER:
             raise ValueError(
                 f"Dataset limit reached ({MAX_DATASETS_PER_USER} max). "
                 "Delete an existing dataset before uploading a new one."
@@ -34,7 +32,7 @@ def handle_upload(file, owner_email: str):
         file.seek(0)
 
         try:
-            df = DataIngestion._read_csv_robust(file_bytes)
+            df = read_csv_robust(file_bytes)
         except Exception:
             raise ValueError("Could not parse the uploaded file as a valid CSV.")
 
@@ -57,9 +55,7 @@ def handle_upload(file, owner_email: str):
             "rows": rows,
             "columns": cols,
         }
-
     except ValueError:
         raise
-
     except Exception as e:
         raise CustomException(e, sys) from e

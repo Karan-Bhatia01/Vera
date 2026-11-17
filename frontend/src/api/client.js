@@ -9,9 +9,20 @@ const api = axios.create({
   timeout: 20000,
 });
 
+/** Remember the logged-in user after login / signup / Google auth. */
+export function saveSession({ token, email }) {
+  localStorage.setItem("token", token);
+  localStorage.setItem("email", email);
+}
+
+/** Forget the logged-in user (expired, rejected, or logged out). */
+export function clearSession() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("email");
+}
+
 // Attach the token to every outgoing request, if one exists.
 api.interceptors.request.use((config) => {
-  // Intercetors are middlemen that run before every request or after every response
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -25,8 +36,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("email");
+      clearSession();
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }

@@ -1,17 +1,11 @@
 """
 mongo_storage.py
 ================
-Handles automatic storage of:
-  - Dataset metadata (shape, dtypes, null info, etc.)
-  - AI-generated insights (from AnalysisExplainer)
-  - Chart-based insights
-  - User-selected target column (for EDA/ML)
-
-All stored automatically after upload + analysis — no extra user action required.
+MongoDB persistence for dataset stats + AI insights, and for user accounts.
 """
 from __future__ import annotations
 
-import os
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -19,8 +13,6 @@ from typing import Any
 from src.logger import logging
 from src.exception import CustomException
 from src.core.connections import get_db
-
-_DB_NAME   = "clarityAI_database"
 
 
 def store_dataset_insights(
@@ -31,9 +23,6 @@ def store_dataset_insights(
 ) -> str:
     """Store dataset stats and AI insights in MongoDB."""
     try:
-        db = get_db()
-        collection = db["dataset_insights"]
-        
         doc = {
             "filename": filename,
             "analysis": analysis,
@@ -41,14 +30,10 @@ def store_dataset_insights(
             "unique": unique or {},
             "updated_at": datetime.now(timezone.utc),
         }
-        
         # Upsert the document based on filename
-        result = collection.update_one(
-            {"filename": filename},
-            {"$set": doc},
-            upsert=True
+        result = get_db()["dataset_insights"].update_one(
+            {"filename": filename}, {"$set": doc}, upsert=True
         )
-        
         logging.info("Dataset insights stored for '%s'.", filename)
         return str(result.upserted_id) if result.upserted_id else "updated"
     except Exception as e:
@@ -59,9 +44,7 @@ def store_dataset_insights(
 def get_dataset_insights(filename: str) -> dict[str, Any] | None:
     """Retrieve stored dataset insights from MongoDB."""
     try:
-        db = get_db()
-        collection = db["dataset_insights"]
-        doc = collection.find_one({"filename": filename})
+        doc = get_db()["dataset_insights"].find_one({"filename": filename})
         if doc and "_id" in doc:
             doc["_id"] = str(doc["_id"])
         return doc
@@ -69,15 +52,20 @@ def get_dataset_insights(filename: str) -> dict[str, Any] | None:
         logging.error("Failed to retrieve dataset insights for '%s': %s", filename, e)
         return None
 
+def delete_dataset_insights(filename: str) -> None:
+    """Remove stored stats + AI insights for a dataset."""
+    try:
+        get_db()["dataset_insights"].delete_many({"filename": filename})
+    except Exception as e:
+        raise CustomException(e, sys) from e
 
 
-# ── User storage (merged from auth_storage.py) ────────────────────────────────
+# ── User storage ──────────────────────────────────────────────────────────────
 
 def create_user(email: str, password_hash: str) -> str:
     """Insert a new user. Returns inserted _id as string."""
     try:
-        db = get_db()
-        result = db["users"].insert_one({
+        result = get_db()["users"].insert_one({
             "email": email,
             "password_hash": password_hash,
             "created_at": datetime.now(timezone.utc),
@@ -89,14 +77,14 @@ def create_user(email: str, password_hash: str) -> str:
 
 
 def get_user_by_email(email: str) -> dict[str, Any] | None:
-    """Retrieve user by email. Returns None if not found."""
+    """Retrieve user by email, ignoring case (older accounts may be stored mixed-case)."""
     try:
-        db = get_db()
-        doc = db["users"].find_one({"email": email})
+        pattern = f"^{re.escape(email.strip())}$"
+        doc = get_db()["users"].find_one({"email": {"$regex": pattern, "$options": "i"}})
         if doc:
             doc["_id"] = str(doc["_id"])
         return doc
     except Exception as e:
         raise CustomException(e, sys) from e
 
-
+

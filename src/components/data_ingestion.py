@@ -1,9 +1,6 @@
-import io
-import os
 import sys
-import pandas as pd
-from src.core.connections import get_db, get_gridfs
 
+from src.core.connections import get_db, get_gridfs
 from src.logger import logging
 from src.exception import CustomException
 
@@ -30,62 +27,6 @@ class DataIngestion:
         except Exception as e:
             raise CustomException(e, sys)
 
-    @staticmethod
-    def _read_csv_robust(file_bytes: bytes) -> pd.DataFrame:
-        """
-        Try to parse CSV bytes with progressively more lenient settings.
-        Picks the parse result with the MOST columns (best delimiter).
-        Handles: NULL bytes, encoding issues, inconsistent column counts, bad lines.
-        """
-        # Strip NULL bytes upfront — C engine still warns on them
-        file_bytes = file_bytes.replace(b'\x00', b'')
-
-        # Log raw bytes for diagnosis
-        logging.info("File size: %d bytes", len(file_bytes))
-        logging.info("First 200 bytes raw: %r", file_bytes[:200])
-
-        encodings  = ["utf-8", "utf-8-sig", "latin1", "cp1252"]
-        separators = [",", "\t", ";", "|"]
-        best_df    = None
-
-        for encoding in encodings:
-            for sep in separators:
-                try:
-                    df = pd.read_csv(
-                        io.BytesIO(file_bytes),
-                        encoding=encoding,
-                        sep=sep,
-                        on_bad_lines="skip",
-                        engine="c",
-                        skip_blank_lines=True,
-                    )
-                    # Must have meaningful shape
-                    if df.shape[0] < 1 or df.shape[1] < 1:
-                        continue
-
-                    # Keep whichever parse yields the most columns
-                    if best_df is None or df.shape[1] > best_df.shape[1]:
-                        best_df = df
-                        logging.info(
-                            "CSV candidate — encoding=%s sep=%r shape=%s",
-                            encoding, sep, df.shape,
-                        )
-
-                except Exception:
-                    continue
-
-            # Early exit: good multi-column result found for this encoding
-            if best_df is not None and best_df.shape[1] > 1:
-                break
-
-        if best_df is None:
-            raise ValueError("Could not parse the uploaded file as a valid CSV.")
-
-        logging.info("CSV final parse — shape=%s", best_df.shape)
-        return best_df
-
-
-
     def get_all_filenames(self, owner_email: str = None):
         """
         Return sorted list of CSV filenames only — excludes .pkl and other non-CSV files.
@@ -95,21 +36,32 @@ class DataIngestion:
             query = {"filename": {"$regex": r"\.csv$", "$options": "i"}}
             if owner_email:
                 query["owner_email"] = owner_email
-
-            docs = self.db.fs.files.find(query, {"filename": 1})
-            return sorted({d["filename"] for d in docs})
+            return sorted(self.db.fs.files.distinct("filename", query))
         except Exception as e:
             raise CustomException(e, sys)
-
-
 
     def count_files_for_owner(self, owner_email: str) -> int:
-        """Count how many CSV datasets a given user currently has stored."""
+        """Count a user's datasets by distinct filename, matching what the dataset list shows."""
+        return len(self.get_all_filenames(owner_email))
+
+    def has_file(self, filename: str, owner_email: str = None) -> bool:
+        """True if `filename` is stored (for this owner, or for anyone when owner_email is None)."""
+        query = {"filename": filename}
+        if owner_email:
+            query["owner_email"] = owner_email
         try:
-            return self.db.fs.files.count_documents({
-                "filename": {"$regex": r"\.csv$", "$options": "i"},
-                "owner_email": owner_email,
-            })
+            return self.db.fs.files.count_documents(query, limit=1) > 0
         except Exception as e:
             raise CustomException(e, sys)
-
+
+    def delete_file(self, owner_email: str, filename: str) -> int:
+        """Delete every stored copy of `filename` owned by this user. Returns how many were removed."""
+        try:
+            copies = list(self.db.fs.files.find({"owner_email": owner_email, "filename": filename}, {"_id": 1}))
+            for doc in copies:
+                self.fs.delete(doc["_id"])
+            logging.info("Deleted %d copies of '%s' for owner '%s'.", len(copies), filename, owner_email)
+            return len(copies)
+        except Exception as e:
+            raise CustomException(e, sys)
+

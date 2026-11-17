@@ -2,7 +2,7 @@ import threading
 from flask import Blueprint, request, jsonify
 from services.auth_decorator import require_auth
 from src.components.eda_processing import DataPreprocessing
-from src.utils import analyse_chart
+from src.components.mongo_storage import get_dataset_insights
 from src.components.job_store import create_job, update_job, get_job_status
 from src.agents.missing_value_agent import decide_missing_value_strategy
 from src.logger import logging
@@ -19,9 +19,14 @@ def _run_eda(job_id: str, filename: str, target_column: str, columns_to_drop: li
             columns_to_drop=columns_to_drop,
         )
         strategy = decide_missing_value_strategy(processor.df)
-        update_job(job_id, message="Generating charts...")
+        update_job(job_id, message="Generating interactive charts...")
         cleaned_df = processor.preprocess_data(strategy)
-        charts = processor.generate_eda_report(cleaned_df)
+
+        insights = get_dataset_insights(filename)
+        ai_insights = insights.get("ai_insights", {}) if insights else {}
+        recommended_charts = ai_insights.get("recommended_charts", [])
+
+        charts = processor.generate_eda_report(cleaned_df, recommended_charts)
         update_job(job_id, status="completed", result={
             "charts": charts,
             "columns": cleaned_df.columns.tolist(),
@@ -61,16 +66,3 @@ def eda_status(job_id):
         return jsonify({"status": "error", "message": "Job not found"}), 404
     return jsonify(result), 200
 
-
-@eda_bp.route("/api/analyse_chart", methods=["POST"])
-@require_auth
-def analyse_chart_route():
-    try:
-        data = request.json
-        result = analyse_chart(
-            data.get("image_b64"),
-            data.get("chart_title"),
-        )
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500

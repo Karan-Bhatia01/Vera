@@ -4,17 +4,15 @@ model_selection_agent.py
 Selects 3-5 models to train instead of always training all 9+.
 
 Computes dataset stats in Python, sends ONE prompt to Groq.
-Returns a list of model names that are valid keys in ml_pipeline._get_models().
+Returns a list of model names that are valid keys in src.ml.models.get_models().
 """
 
 import sys
 import json
-from collections import Counter
 from pathlib import Path
 
-import numpy as np
-
-from src.agents.llm_provider import call_llm, parse_json_from_response
+from src.agents.llm_provider import call_llm
+from src.utils import parse_json_response
 from src.logger import logging
 from src.exception import CustomException
 
@@ -39,7 +37,7 @@ def select_models(
     target_balance: dict | None = None,
 ) -> list[str]:
     """
-    Returns list of 3-5 model name strings, valid keys in ml_pipeline._get_models().
+    Returns list of 3-5 model name strings, valid keys in src.ml.models.get_models().
     """
     try:
         available = (
@@ -70,7 +68,7 @@ def select_models(
         # defaults so training never fails just because model selection did.
         try:
             raw = call_llm(SYSTEM_PROMPT, user_prompt)
-            selected = parse_json_from_response(raw)
+            selected = parse_json_response(raw)
         except Exception as llm_err:
             logging.warning(
                 "Model-selection LLM unavailable (%s) — using default models.", llm_err

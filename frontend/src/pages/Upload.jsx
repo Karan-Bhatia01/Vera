@@ -8,7 +8,8 @@ const MAX_DATASETS = 3;
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { addJob, selectDataset: selectPipelineDataset } = usePipeline();
+  const { addJob, selectDataset: selectPipelineDataset, forgetDataset } = usePipeline();
+  const [deleting, setDeleting] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [datasets, setDatasets] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -19,14 +20,6 @@ export default function Upload() {
   const [selectedFilename, setSelectedFilename] = useState(
     () => localStorage.getItem("selectedDataset") || null,
   );
-
-  useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      navigate("/login");
-      return;
-    }
-    fetchDatasets();
-  }, []);
 
   async function fetchDatasets() {
     setLoadingList(true);
@@ -39,6 +32,15 @@ export default function Upload() {
       setLoadingList(false);
     }
   }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      navigate("/login");
+      return;
+    }
+    fetchDatasets();
+  }, [navigate]);
 
   const selectDataset = (filename) => {
     setSelectedFilename(filename);
@@ -72,6 +74,24 @@ export default function Upload() {
     }
   };
 
+  const deleteDataset = async (filename) => {
+    if (!window.confirm(`Delete "${filename}"? This removes the file and its analysis.`)) return;
+    setError("");
+    setSuccess("");
+    setDeleting(filename);
+    try {
+      await api.delete(`/api/datasets/${encodeURIComponent(filename)}`);
+      forgetDataset(filename);
+      if (selectedFilename === filename) setSelectedFilename(null);
+      setSuccess(`"${filename}" deleted.`);
+      await fetchDatasets();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not delete dataset");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const goToDashboard = async () => {
     if (!selectedFilename) return;
     setNavigating(true);
@@ -92,192 +112,177 @@ export default function Upload() {
   const atLimit = datasets.length >= MAX_DATASETS;
 
   return (
-    <div className="mx-auto max-w-5xl px-2 py-8">
-      <header className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold text-[var(--text)]">
-          Upload Your Dataset
+    <div className="mx-auto max-w-4xl px-4 py-16 flex flex-col items-center min-h-screen">
+      <header className="text-center mb-16">
+        <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-[var(--text)]">
+          Upload Dataset.
         </h1>
-        <p className="mt-2 text-[var(--muted)] font-['JetBrains_Mono']">
-          Transform raw data into model-ready insights
+        <p className="mt-4 text-[var(--muted)] text-lg">
+          Drop your CSV file to unlock automated model-ready insights.
         </p>
       </header>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <section className="surface flex flex-col">
-          <h2 className="text-lg font-bold mb-1">Upload CSV File</h2>
-          <p className="text-sm text-[var(--muted)] mb-6 font-['JetBrains_Mono']">
-            Drag & drop or click to select
-          </p>
-          <div
-            onClick={() => !atLimit && fileInputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (!atLimit) setDragActive(true);
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={
-              atLimit
-                ? undefined
-                : (e) => {
-                    e.preventDefault();
-                    setDragActive(false);
-                    const f = e.dataTransfer.files?.[0];
-                    if (f) uploadFile(f);
-                  }
-            }
-            className={`flex-1 min-h-[200px] flex flex-col items-center justify-center rounded-[var(--radius-md)] border-2 border-dashed px-6 py-10 text-center transition-colors ${
-              atLimit
-                ? "border-[var(--line)] opacity-50 cursor-not-allowed"
-                : dragActive
-                  ? "border-[var(--blue)] bg-[var(--blue-dark)] cursor-pointer"
-                  : "border-[var(--line)] cursor-pointer hover:border-gray-500"
-            }`}
-          >
-            <div className="text-4xl mb-3">📁</div>
-            <p className="font-semibold">
-              {atLimit ? "Dataset limit reached" : "Click or drag CSV here"}
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)] font-['JetBrains_Mono']">
-              {atLimit
-                ? "Delete a dataset first"
-                : "Max 50,000 rows · 20 columns · 50MB"}
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) uploadFile(f);
-                e.target.value = "";
-              }}
-              disabled={atLimit}
-            />
+      {/* Main Upload Dropzone */}
+      <div className="w-full max-w-2xl relative group mb-16">
+        {/* Subtle border glow on hover */}
+        <div className="absolute -inset-[1px] rounded-[2.5rem] bg-[var(--text)]/[0.06] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        
+        <div
+          onClick={() => !atLimit && fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!atLimit) setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={
+            atLimit
+              ? undefined
+              : (e) => {
+                  e.preventDefault();
+                  setDragActive(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) uploadFile(f);
+                }
+          }
+          className={`relative flex min-h-[320px] w-full flex-col items-center justify-center rounded-[2rem] border border-[var(--text)]/[0.1] bg-[var(--bg)] px-6 py-10 text-center transition-all duration-300 ${
+            atLimit
+              ? "opacity-50 cursor-not-allowed"
+              : dragActive
+                ? "border-[var(--blue)] bg-[var(--blue)]/5 cursor-pointer scale-[1.02]"
+                : "cursor-pointer hover:border-[var(--text)]/[0.3] hover:bg-[var(--text)]/[0.02]"
+          }`}
+        >
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--text)]/[0.05] mb-6 transition-transform duration-300 group-hover:scale-110">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text)]">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
           </div>
+          
+          <h3 className="text-2xl font-bold mb-2">
+            {atLimit ? "Storage Full" : "Click or drag CSV here"}
+          </h3>
+          <p className="text-sm text-[var(--muted)] font-mono">
+            {atLimit
+              ? `You have reached the ${MAX_DATASETS} dataset limit.`
+              : "Max 25,000 rows · 20 columns"}
+          </p>
+
           {uploading && (
-            <p className="mt-4 text-center font-['JetBrains_Mono'] text-xs text-[var(--muted)]">
-              Uploading…
-            </p>
+            <div className="absolute inset-0 flex items-center justify-center rounded-[2rem] bg-[var(--bg)]/80 backdrop-blur-sm">
+              <p className="font-mono text-sm font-bold animate-pulse text-[var(--blue)]">
+                Uploading...
+              </p>
+            </div>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadFile(f);
+              e.target.value = "";
+            }}
+            disabled={atLimit}
+          />
+        </div>
+        
+        {/* Alerts */}
+        <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
           {error && (
-            <p className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 font-['JetBrains_Mono'] text-xs text-red-400">
-              ✗ {error}
+            <p className="rounded-full border border-red-500/20 bg-red-500/10 px-6 py-2 text-sm text-red-400 font-medium animate-in fade-in slide-in-from-bottom-2">
+              {error}
             </p>
           )}
           {success && (
-            <p className="mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 font-['JetBrains_Mono'] text-xs text-emerald-400">
-              ✓ {success}
+            <p className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-6 py-2 text-sm text-emerald-400 font-medium animate-in fade-in slide-in-from-bottom-2">
+              {success}
             </p>
           )}
-        </section>
-
-        <section className="surface">
-          <h2 className="text-lg font-bold mb-4">What Vera Does</h2>
-          <div className="space-y-5">
-            {[
-              {
-                icon: "🔍",
-                title: "Smart Data Analysis",
-                body: "AI identifies patterns, flags quality issues automatically.",
-              },
-              {
-                icon: "⚙️",
-                title: "Auto ML Pipeline",
-                body: "Preprocessing, feature engineering, and training — all automated.",
-              },
-              {
-                icon: "💬",
-                title: "AI Assistant",
-                body: "Ask questions about your data in plain language.",
-              },
-            ].map((item) => (
-              <div key={item.title}>
-                <div className="text-xl mb-1">{item.icon}</div>
-                <h3 className="font-semibold text-sm">{item.title}</h3>
-                <p className="mt-1 text-sm text-[var(--muted)] font-['JetBrains_Mono']">
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        </div>
       </div>
 
-      <section className="mt-8 surface">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-bold">Your Datasets</h2>
-          <span className="rounded-md bg-[var(--blue-dark)] px-3 py-1 text-xs font-semibold text-[var(--blue)]">
-            {datasets.length} / {MAX_DATASETS}
+      {/* Dataset Selection */}
+      <div className="w-full max-w-3xl mt-8 rounded-[2rem] border border-[var(--text)]/[0.1] bg-[var(--text)]/[0.02] p-8 sm:p-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold">Your Library</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Select a dataset to begin analysis</p>
+          </div>
+          <span className="mt-4 sm:mt-0 inline-flex items-center rounded-full bg-[var(--text)]/[0.05] px-4 py-1.5 text-xs font-bold font-mono text-[var(--text)]">
+            {datasets.length} / {MAX_DATASETS} USED
           </span>
         </div>
-        <p className="text-sm text-[var(--muted)] mb-1 font-['JetBrains_Mono']">
-          Click a dataset to select it
-        </p>
-        <p className="text-xs text-[var(--muted)] opacity-70 font-['JetBrains_Mono'] mb-6">
-          CSV files only · max {MAX_DATASETS}
-        </p>
 
         {loadingList ? (
-          <p className="text-sm text-[var(--muted)] font-['JetBrains_Mono']">
-            Loading…
-          </p>
+          <div className="flex justify-center py-12">
+            <p className="text-sm text-[var(--muted)] font-mono animate-pulse">Loading datasets...</p>
+          </div>
         ) : datasets.length === 0 ? (
-          <p className="text-sm text-[var(--muted)] font-['JetBrains_Mono']">
-            No datasets uploaded yet.
-          </p>
+          <div className="rounded-2xl border border-[var(--text)]/[0.05] border-dashed py-12 text-center">
+            <p className="text-[var(--muted)]">No files found. Upload your first CSV above.</p>
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {datasets.map((d) => {
               const isSelected = d.filename === selectedFilename;
               return (
-                <button
-                  key={d.filename}
-                  onClick={() => selectDataset(d.filename)}
-                  className={`text-left rounded-[var(--radius-md)] border p-4 flex flex-col gap-3 transition-colors ${
-                    isSelected
-                      ? "border-[var(--blue)] bg-[var(--surface-2)]"
-                      : "border-[var(--line)] bg-[var(--surface)] hover:border-gray-500"
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <h3 className="font-semibold break-words text-sm truncate pr-2">
-                      📄 {d.filename}
-                    </h3>
+                <div key={d.filename} className="group relative transition-all duration-300 hover:-translate-y-1">
+                  <button
+                    onClick={() => selectDataset(d.filename)}
+                    className={`relative w-full h-full overflow-hidden text-left rounded-2xl border p-5 pb-12 flex flex-col gap-3 transition-all duration-300 ${
+                      isSelected
+                        ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-xl"
+                        : "border-[var(--text)]/[0.20] bg-[var(--surface)] hover:border-[var(--text)]/[0.3]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between w-full">
+                      <h3 className={`font-bold text-base line-clamp-2 pr-2 ${isSelected ? "text-[var(--bg)]" : "text-[var(--text)]"}`}>
+                        {d.filename}
+                      </h3>
+                    </div>
                     {isSelected && (
-                      <span className="shrink-0 rounded-full bg-[var(--blue)] px-2 py-0.5 text-[10px] font-bold text-[var(--bg)]">
-                        SELECTED
-                      </span>
+                      <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-[var(--blue)] animate-pulse" />
                     )}
-                  </div>
-                  {d.shape && (
-                    <p className="text-xs text-[var(--muted)] font-['JetBrains_Mono']">
-                      {d.shape[0]} rows · {d.shape[1]} cols
-                    </p>
-                  )}
-                </button>
+                  </button>
+                  <button
+                    onClick={() => deleteDataset(d.filename)}
+                    disabled={deleting === d.filename}
+                    aria-label={`Delete ${d.filename}`}
+                    title="Delete dataset"
+                    className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 hover:bg-red-500/15 hover:text-red-400 ${
+                      isSelected ? "text-[var(--bg)]/60" : "text-[var(--muted)]"
+                    }`}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
-      </section>
+      </div>
 
-      <div className="mt-8 flex flex-col items-center gap-2">
-        {!selectedFilename && (
-          <p className="text-xs text-[var(--muted)] font-['JetBrains_Mono']">
-            Select a dataset above to continue
-          </p>
-        )}
+      {/* Action Button */}
+      <div className="mt-16 mb-8 w-full max-w-sm">
         <button
           onClick={goToDashboard}
           disabled={!selectedFilename || navigating}
-          className={`rounded-full px-8 py-3.5 font-semibold transition-opacity ${
+          className={`w-full rounded-2xl px-8 py-5 text-lg font-bold transition-all duration-300 ${
             selectedFilename && !navigating
-              ? "bg-[var(--blue)] text-[var(--bg)] hover:opacity-90"
-              : "bg-[var(--line)] text-[var(--muted)] cursor-not-allowed"
+              ? "bg-[var(--text)] text-[var(--bg)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-[var(--text)]/20"
+              : "bg-[var(--text)]/[0.05] text-[var(--muted)] cursor-not-allowed"
           }`}
         >
-          {navigating ? "Starting analysis…" : "Go to Dashboard →"}
+          {navigating ? "Initializing Pipeline..." : "Enter Workspace →"}
         </button>
       </div>
     </div>

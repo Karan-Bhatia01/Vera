@@ -1,11 +1,8 @@
 """
 feature_engineering_agent.py
 =============================
-Replaces ml_pipeline.py's llm_feature_plan().
-
 Computes all column stats in Python first, then sends ONE compact prompt
 to Groq with the full picture — no tool-call loops, no multi-turn reasoning.
-Typical response time: 1-3 seconds instead of 30-60+.
 """
 
 import sys
@@ -14,7 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.agents.llm_provider import call_llm, parse_json_from_response
+from src.agents.llm_provider import call_llm
+from src.utils import parse_json_response
 from src.logger import logging
 from src.exception import CustomException
 
@@ -50,8 +48,8 @@ def _heuristic_plan(df: pd.DataFrame, target_column: str) -> dict:
 
 def decide_feature_plan(df: pd.DataFrame, target_column: str) -> dict:
     """
-    Returns {"drop": [], "ordinal": {}, "onehot": [], "numeric": []}
-    in the exact shape ml_pipeline.py already expects.
+    Returns {"drop": [], "ordinal": {}, "onehot": [], "numeric": []},
+    the shape src.ml.preprocessing.build_splits expects.
     """
     try:
         # Build compact column summary — all stats computed in Python, not by LLM
@@ -81,7 +79,7 @@ def decide_feature_plan(df: pd.DataFrame, target_column: str) -> dict:
         # instead of failing the whole job.
         try:
             raw = call_llm(SYSTEM_PROMPT, user_prompt)
-            plan = parse_json_from_response(raw)
+            plan = parse_json_response(raw)
             if not isinstance(plan, dict) or not plan:
                 raise ValueError("empty/invalid plan from LLM")
         except Exception as llm_err:

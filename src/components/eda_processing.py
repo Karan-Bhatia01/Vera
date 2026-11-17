@@ -1,45 +1,34 @@
 from __future__ import annotations
 
-import os
 import sys
-import json
-import textwrap
-from typing import Any
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import seaborn as sns
-from src.core.connections import get_db, get_gridfs
-from dotenv import load_dotenv
 
 from src.logger import logging
 from src.exception import CustomException
-from src.utils import (
-    load_dataframe_from_mongo,
-    fig_to_b64,
-    analyse_chart,
-    empty_analysis,
-)
+from src.utils import load_dataframe_from_mongo
 
-load_dotenv()
+# Chart types that just count the values of one column.
+_COUNT_CHARTS = {"bar", "pie", "doughnut", "radar", "polararea"}
 
-sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
+
+def _all_finite(datasets: list[dict]) -> bool:
+    """True if every number in the chart data (plain values or x/y/r points) is finite."""
+    for ds in datasets:
+        for value in ds["data"]:
+            numbers = value.values() if isinstance(value, dict) else [value]
+            if not all(np.isfinite(n) for n in numbers):
+                return False
+    return True
 
 
 class DataPreprocessing:
     """
-    Full preprocessing + EDA pipeline.
+    Preprocessing + EDA pipeline.
 
-    Workflow
-    --------
-    1. get_ai_insights()          → {col: method} — skips agent if no nulls
-    2. preprocess_data(strategy)  → cleaned DataFrame (in-memory only)
-    3. generate_eda_report(df)    → {chart_title: image_b64}
-                                    No AI calls here — done on-demand via /analyse_chart
-    4. analyse_single(b64, title) → AI analysis dict for one chart
+    1. preprocess_data(strategy)                → cleaned DataFrame (in-memory only)
+    2. generate_eda_report(df, recommended)     → Chart.js-ready chart data, one per AI-recommended chart
     """
 
     def __init__(
@@ -52,51 +41,13 @@ class DataPreprocessing:
             self.filename        = filename
             self.target_column   = target_column
             self.columns_to_drop = columns_to_drop or []
-
-            self.db = get_db()
-            self.fs = get_gridfs()
-
             self.df = load_dataframe_from_mongo(filename)
             logging.info("DataPreprocessing loaded '%s' — shape %s", filename, self.df.shape)
 
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
-    def _valid_hue(self, df: pd.DataFrame) -> str | None:
-        """Returns the target column if it exists in the dataframe for color mapping."""
-        tc = self.target_column
-        return tc if isinstance(tc, str) and tc.strip() and tc in df.columns else None
-
-    def _save_chart(self, fig, title: str, charts: dict) -> None:
-        """Helper to convert a plot to base64 and save it, then clean up memory."""
-        charts[title] = fig_to_b64(fig)
-        plt.close(fig)
-
-    def _get_top_features(self, df: pd.DataFrame) -> tuple[list[str], list[str]]:
-        """Finds the most important numeric and categorical columns to plot."""
-        num_cols = df.select_dtypes(include="number").columns.tolist()
-        cat_cols = df.select_dtypes(exclude="number").columns.tolist()
-
-        top_num = []
-        if num_cols:
-            if self.target_column in num_cols:
-                corrs = df[num_cols].corr()[self.target_column].abs().drop(self.target_column, errors="ignore")
-                top_num = [self.target_column] + corrs.sort_values(ascending=False).head(4).index.tolist()
-            else:
-                top_num = df[num_cols].var().sort_values(ascending=False).head(5).index.tolist()
-
-        top_cat = []
-        if cat_cols:
-            cat_nunique = df[cat_cols].nunique()
-            top_cat = cat_nunique[cat_nunique > 1].sort_values().head(3).index.tolist()
-
-        return top_num, top_cat
-
-    # ── 1. Missing-value strategy (agent-based) ───────────────────────────────
-
-
-    # ── Preprocessing ──────────────────────────────────────────────────────
+    # ── Preprocessing ─────────────────────────────────────────────────────────
     def preprocess_data(self, strategy: dict[str, str] | None = None) -> pd.DataFrame:
         """Cleans data: removes duplicates, drops columns, fills missing values."""
         try:
@@ -109,10 +60,10 @@ class DataPreprocessing:
             if df.isnull().values.any() and strategy:
                 for col, method in strategy.items():
                     if col not in df.columns: continue
-                    
+
                     if method in ("mean", "median", "zero"):
                         df[col] = pd.to_numeric(df[col], errors="coerce")
-                        
+
                     if method == "mean":     df[col] = df[col].fillna(df[col].mean() or 0)
                     elif method == "median": df[col] = df[col].fillna(df[col].median() or 0)
                     elif method == "mode":   df[col] = df[col].fillna(df[col].mode().iloc[0] if not df[col].mode().empty else 0)
@@ -127,94 +78,86 @@ class DataPreprocessing:
         except Exception as e:
             raise CustomException(e, sys) from e
 
-    # ── 3. EDA report — charts only, no AI calls ───────────────────────────────
-    def generate_eda_report(self, df: pd.DataFrame) -> dict[str, str]:
-        """
-        Build all charts and return {title: image_b64}.
-        AI analysis is NOT done here — it happens on-demand via /analyse_chart.
-        Page loads instantly.
-        """
-        try:
-            charts = self._build_all_charts(df)
-            if charts is None:
-                logging.warning("_build_all_charts returned None — using empty dict.")
-                charts = {}
-            logging.info("EDA report built — %d charts (no AI calls).", len(charts))
-            return charts
-        except Exception as e:
-            raise CustomException(e, sys) from e
+    # ── EDA report ────────────────────────────────────────────────────────────
+    def generate_eda_report(self, df: pd.DataFrame, recommended_charts: list[dict]) -> list[dict]:
+        """Build Chart.js data for every chart the AI recommended. Bad charts are skipped."""
+        charts = []
+        for rec in recommended_charts:
+            try:
+                chart = self._build_chart(df, rec)
+                if chart:
+                    charts.append(chart)
+            except Exception as e:
+                logging.warning("Skipping chart %s: %s", rec, e)
 
-    # ── 4. Analyse a single chart on demand ────────────────────────────────────
-    def analyse_single(self, image_b64: str, chart_title: str) -> dict[str, Any]:
-        """Called by /analyse_chart route for one chart at a time."""
-        try:
-            result = analyse_chart(
-                image_b64, chart_title
-            )
-            logging.info("On-demand analysis done for '%s'.", chart_title)
-            return result
-        except Exception as e:
-            logging.warning("On-demand analysis failed for '%s': %s", chart_title, e)
-            return empty_analysis(chart_title)
-
-    # ── Chart builder ──────────────────────────────────────────────────────────
-    def _build_all_charts(self, df: pd.DataFrame) -> dict[str, str]:
-        """Generates up to 10 meaningful charts using the top features."""
-        charts: dict[str, str] = {}
-        try:
-            top_num, top_cat = self._get_top_features(df)
-
-            # 1. Distributions (up to 4)
-            for col in top_num[:4]:
-                if len(charts) >= 10: break
-                title = f"Distribution — {col}"
-                fig, ax = plt.subplots(figsize=(7, 4))
-                sns.histplot(df[col].dropna(), kde=True, ax=ax, color="#4C72B0")
-                ax.set_title(title); ax.set_xlabel(col)
-                self._save_chart(fig, title, charts)
-
-            # 2. Boxplots (up to 2)
-            for col in top_num[:2]:
-                if len(charts) >= 10: break
-                title = f"Boxplot — {col}"
-                fig, ax = plt.subplots(figsize=(6, 4))
-                sns.boxplot(y=df[col].dropna(), ax=ax, color="#55A868")
-                ax.set_title(title)
-                self._save_chart(fig, title, charts)
-
-            # 3. Value Counts (up to 3)
-            for col in top_cat:
-                if len(charts) >= 10: break
-                title = f"Value Counts — {col}"
-                vc = df[col].value_counts().head(10)
-                fig, ax = plt.subplots(figsize=(8, 4))
-                sns.barplot(x=vc.index, y=vc.values, ax=ax, hue=vc.index, palette="muted", legend=False)
-                ax.set_title(title); ax.set_xlabel(col); ax.set_ylabel("Count")
-                plt.xticks(rotation=35, ha="right"); plt.tight_layout()
-                self._save_chart(fig, title, charts)
-
-            # 4. Correlation Heatmap (1)
-            if len(top_num) >= 2 and len(charts) < 10:
-                title = "Correlation Heatmap"
-                corr = df[top_num].corr()
-                fig, ax = plt.subplots(figsize=(max(6, len(top_num)), max(5, len(top_num) - 1)))
-                sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, ax=ax, square=True)
-                ax.set_title(title); plt.tight_layout()
-                self._save_chart(fig, title, charts)
-
-            # 5. Scatter Plots (up to 2)
-            if len(top_num) >= 2:
-                corr_matrix = df[top_num].corr().abs()
-                pairs = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().sort_values(ascending=False).head(2)
-                for (col_x, col_y), _ in pairs.items():
-                    if len(charts) >= 10: break
-                    title = f"Scatter — {col_x} vs {col_y}"
-                    fig, ax = plt.subplots(figsize=(6, 5))
-                    sns.scatterplot(data=df, x=col_x, y=col_y, hue=self._valid_hue(df), alpha=0.65, ax=ax)
-                    ax.set_title(title); plt.tight_layout()
-                    self._save_chart(fig, title, charts)
-                    
-        except Exception as e:
-            logging.warning("Error building charts: %s", e)
-
+        logging.info("EDA report built — %d charts.", len(charts))
         return charts
+
+    @staticmethod
+    def _numeric_sample(df: pd.DataFrame, cols: list[str], max_points: int) -> pd.DataFrame:
+        """Numeric-only copy of `cols` with NaNs dropped, sampled down for the browser."""
+        data = df[cols].apply(pd.to_numeric, errors="coerce").dropna()
+        return data.sample(min(max_points, len(data)))
+
+    def _build_chart(self, df: pd.DataFrame, rec: dict) -> dict | None:
+        """Aggregate the raw data for one recommended chart, or return None if it can't be drawn."""
+        chart_type = rec.get("chart_type", "bar").lower()
+        cols = rec.get("columns", [])
+
+        # Every column the chart needs must exist (scatter/line need 2, bubble needs 3).
+        needed = {"scatter": 2, "line": 2, "bubble": 3}.get(chart_type, 1)
+        if len(cols) < needed or any(c not in df.columns for c in cols[:needed]):
+            return None
+
+        x = cols[0]
+        labels, datasets = [], []
+
+        if chart_type in _COUNT_CHARTS:
+            counts = df[x].value_counts().head(10)
+            labels = counts.index.astype(str).tolist()
+            datasets = [{"label": "Count", "data": counts.values.tolist()}]
+
+        elif chart_type == "histogram":
+            values = pd.to_numeric(df[x], errors="coerce").dropna()
+            if values.empty:
+                return None
+            hist, bins = np.histogram(values, bins=20)
+            labels = [f"{bins[i]:.2f} - {bins[i + 1]:.2f}" for i in range(len(hist))]
+            datasets = [{"label": "Frequency", "data": hist.tolist()}]
+
+        elif chart_type == "scatter":
+            y = cols[1]
+            sample = self._numeric_sample(df, [x, y], max_points=500)
+            points = [{"x": float(px), "y": float(py)} for px, py in zip(sample[x], sample[y])]
+            datasets = [{"label": f"{y} vs {x}", "data": points}]
+
+        elif chart_type == "bubble":
+            y, size = cols[1], cols[2]
+            sample = self._numeric_sample(df, [x, y, size], max_points=200)
+            # Scale bubble radius into a readable 5–20px range.
+            low, high = sample[size].min(), sample[size].max()
+            spread = (high - low) or 1
+            points = [
+                {"x": float(px), "y": float(py), "r": 5 + 15 * (float(ps) - low) / spread}
+                for px, py, ps in zip(sample[x], sample[y], sample[size])
+            ]
+            datasets = [{"label": f"{y} vs {x} (size: {size})", "data": points}]
+
+        elif chart_type == "line":
+            y = cols[1]
+            # Groups whose values are all missing average to NaN — drop them.
+            averages = df.groupby(x)[y].mean().dropna().head(20)
+            labels = averages.index.astype(str).tolist()
+            datasets = [{"label": f"Average {y}", "data": averages.values.tolist()}]
+
+        if not datasets or not datasets[0]["data"] or not _all_finite(datasets):
+            # Nothing to draw, or NaN/inf that would make the response invalid JSON.
+            return None
+
+        return {
+            "chart_type": chart_type,
+            "columns": cols,
+            "labels": labels,
+            "datasets": datasets,
+            "takeaway": rec.get("story_takeaway", ""),
+        }

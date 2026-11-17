@@ -49,10 +49,6 @@ export function PipelineProvider({ children }) {
   const [insightsError, setInsightsError] = useState("");
   const loadedRef = useRef({});
 
-  // Global state for EDA charts AI Analysis
-  const [chartAnalyses, setChartAnalyses] = useState({});
-  const [activeChartAnalysis, setActiveChartAnalysis] = useState(null);
-
   const [jobUpdate, setJobUpdate] = useState(0);
 
   const intervalRef = useRef(null);
@@ -96,7 +92,7 @@ export function PipelineProvider({ children }) {
       }
       try {
         const r = await api.get(`/api/pipeline_status/${s.key}/${jobId}`);
-        setterFor(s.key)(r.data);
+        setterFor(s.key)({ ...r.data, job_id: jobId });
         if (DONE.includes(r.data.status)) doneRef.current[s.key] = true;
       } catch (e) {
         if (e.response?.status === 404) {
@@ -137,7 +133,6 @@ export function PipelineProvider({ children }) {
     };
   }, [filename, stop, jobUpdate]);
 
-
   // key is the full storage key, e.g. "eda_job_id" / "ml_job_id".
   const addJob = useCallback(
     (key, jobId) => {
@@ -149,8 +144,8 @@ export function PipelineProvider({ children }) {
 
       doneRef.current[shortKey] = false;
       setGone((g) => (g[shortKey] ? { ...g, [shortKey]: false } : g));
-      setterFor(shortKey)({ status: "queued" });
-      
+      setterFor(shortKey)({ status: "queued", job_id: jobId });
+
       // Trigger the main useEffect to restart polling for ALL active jobs
       setJobUpdate((u) => u + 1);
     },
@@ -167,9 +162,28 @@ export function PipelineProvider({ children }) {
   }, [stop]);
 
   const selectDataset = useCallback((name) => {
-    localStorage.setItem("selectedDataset", name);
+    if (name) localStorage.setItem("selectedDataset", name);
+    else localStorage.removeItem("selectedDataset");
     setFilename(name);
   }, []);
+
+  // A dataset was deleted: drop every bit of client state that points at it.
+  const forgetDataset = useCallback(
+    (name) => {
+      if (filename === name) {
+        selectDataset(null);
+        localStorage.removeItem("targetColumn");
+      }
+      if (readJobs()?.filename === name) clearJobs();
+      delete loadedRef.current[name];
+      setStoredInsights((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    },
+    [filename, selectDataset, clearJobs],
+  );
 
   // Fetch stored insights once per filename; cached for the session.
   const loadInsights = useCallback(async (fname) => {
@@ -201,14 +215,11 @@ export function PipelineProvider({ children }) {
     addJob,
     clearJobs,
     selectDataset,
+    forgetDataset,
     storedInsights,
     insightsLoading,
     insightsError,
     loadInsights,
-    chartAnalyses,
-    setChartAnalyses,
-    activeChartAnalysis,
-    setActiveChartAnalysis,
   };
 
   return (
@@ -218,6 +229,7 @@ export function PipelineProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePipeline() {
   const ctx = useContext(PipelineContext);
   if (!ctx)

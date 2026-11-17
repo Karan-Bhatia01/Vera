@@ -1,55 +1,34 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../api/client";
-import Background from "../components/Background";
-import Navbar from "../components/landing/Navbar";
+import api, { saveSession } from "../api/client";
+import AuthLayout, { AuthFields, AuthError } from "../components/auth/AuthLayout";
+import GoogleAuthButton from "../components/auth/GoogleAuthButton";
+import validateCredentials from "../components/auth/validateCredentials";
 
 const fields = [
-  {
-    name: "email",
-    type: "text",
-    label: "EMAIL",
-    placeholder: "you@example.com",
-  },
-  {
-    name: "password",
-    type: "password",
-    label: "PASSWORD",
-    placeholder: "min 6 characters",
-  },
-  {
-    name: "confirm_password",
-    type: "password",
-    label: "CONFIRM_PASSWORD",
-    placeholder: "re-enter password",
-  },
+  { name: "email", type: "text", label: "Email address", placeholder: "you@example.com" },
+  { name: "password", type: "password", label: "Password", placeholder: "min 6 characters" },
+  { name: "confirm_password", type: "password", label: "Confirm password", placeholder: "re-enter password" },
 ];
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    confirm_password: "",
-  });
+  const [form, setForm] = useState({ email: "", password: "", confirm_password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const validate = () => {
-    if (!form.email) return "Email is required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      return "Invalid email format";
-    if (!form.password) return "Password is required";
-    if (form.password.length < 6)
-      return "Password must be at least 6 characters";
-    if (form.password !== form.confirm_password)
-      return "Passwords do not match";
+    const err = validateCredentials(form);
+    if (err) return err;
+    if (form.password !== form.confirm_password) return "Passwords do not match";
+    if (!form.consent) return "You must agree to the Terms of Service and Privacy Policy";
     return null;
   };
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e.preventDefault();
     setError("");
     const err = validate();
     if (err) {
@@ -59,8 +38,7 @@ export default function Signup() {
     setLoading(true);
     try {
       const res = await api.post("/auth/signup", form);
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("email", res.data.email);
+      saveSession(res.data);
       navigate("/upload");
     } catch (err) {
       setError(err.response?.data?.detail || "Signup failed");
@@ -70,59 +48,45 @@ export default function Signup() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)] font-['Space_Grotesk']">
-      <Background />
-      <div className="w-full relative z-20 pt-4">
-        <Navbar />
-      </div>
-      <div className="flex-1 flex items-center justify-center w-full px-6">
-        <div className="relative z-10 w-full max-w-[420px] rounded-3xl border border-[var(--line)] bg-[var(--surface-2)]/80 backdrop-blur-sm p-10 sm:p-12">
-          <p className="font-['JetBrains_Mono'] text-xs tracking-[0.15em] text-[var(--muted)] mb-2">
-            REGISTER
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight mb-8">SIGNUP</h1>
+    <AuthLayout title="Create account." subtitle="Join Vera and start analyzing your data.">
+      <form onSubmit={submit} className="space-y-6">
+        <AuthFields fields={fields} form={form} onChange={handle} />
+        <AuthError message={error} />
 
-          {fields.map((field) => (
-            <div key={field.name} className="mb-4">
-              <p className="font-['JetBrains_Mono'] text-[11px] tracking-[0.15em] text-[var(--muted)] mb-1.5">
-                {field.label}
-              </p>
-              <input
-                name={field.name}
-                type={field.type}
-                value={form[field.name]}
-                onChange={handle}
-                placeholder={field.placeholder}
-                className="w-full rounded-md border border-[var(--line)] bg-transparent px-4 py-3 font-['JetBrains_Mono'] text-sm text-[var(--text)] outline-none transition-colors focus:border-[var(--blue)] placeholder:text-[var(--muted)]"
-              />
-            </div>
-          ))}
-
-          {error && (
-            <p className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 font-['JetBrains_Mono'] text-xs text-red-400">
-              ✗ {error}
-            </p>
-          )}
-
-          <button
-            onClick={submit}
-            disabled={loading}
-            className="mt-2 w-full rounded-md bg-[var(--blue)] py-3.5 font-['JetBrains_Mono'] text-sm font-bold tracking-[0.1em] text-[var(--bg)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "CREATING ACCOUNT..." : "[ CREATE ACCOUNT ]"}
-          </button>
-
-          <p className="mt-6 text-center font-['JetBrains_Mono'] text-xs text-[var(--muted)]">
-            HAVE AN ACCOUNT?{" "}
-            <Link
-              to="/login"
-              className="text-[var(--text)] hover:text-[var(--blue)] transition-colors"
-            >
-              LOGIN →
-            </Link>
-          </p>
+        <div className="flex items-start gap-3 mt-4">
+          <input
+            type="checkbox"
+            id="consent"
+            name="consent"
+            checked={form.consent || false}
+            onChange={(e) => setForm({ ...form, consent: e.target.checked })}
+            className="mt-1 h-4 w-4 shrink-0 rounded border-[var(--text)]/[0.2] bg-[var(--text)]/[0.05] text-[var(--text)] focus:ring-[var(--text)]"
+          />
+          <label htmlFor="consent" className="text-sm text-[var(--muted)] leading-relaxed">
+            I agree to the{" "}
+            <Link to="/terms-of-service" className="text-[var(--text)] underline hover:opacity-80">Terms of Service</Link>
+            {" "}and{" "}
+            <Link to="/privacy-policy" className="text-[var(--text)] underline hover:opacity-80">Privacy Policy</Link>.
+          </label>
         </div>
-      </div>
-    </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-2 w-full rounded-xl bg-[var(--text)] py-4 text-base font-bold text-[var(--bg)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? "Creating Account..." : "Create Account"}
+        </button>
+      </form>
+
+      <GoogleAuthButton failMessage="Google Signup failed" setError={setError} setLoading={setLoading} />
+
+      <p className="mt-8 text-center text-sm text-[var(--muted)]">
+        Already have an account?{" "}
+        <Link to="/login" className="font-bold text-[var(--text)] hover:underline transition-all">
+          Log in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }
